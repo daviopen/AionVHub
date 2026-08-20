@@ -31,11 +31,15 @@ public class HubMediaService extends MediaBrowserServiceCompat {
 
                 @Override public void onPlayFromMediaId(String mediaId, Bundle extras) {
                     HubDiagnostics.event(HubMediaService.this, "MEDIA-COMPAT onPlayFromMediaId: " + mediaId);
-                    mediaSession.setMetadata(new MediaMetadataCompat.Builder()
-                            .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
-                            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, "AION V Hub")
-                            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "Teste Android Auto")
-                            .build());
+                    publishTestMetadata(mediaId, "AION V Hub", "Teste Android Auto");
+                    setPlaybackState(PlaybackStateCompat.STATE_PLAYING);
+                }
+
+                @Override public void onPlayFromSearch(String query, Bundle extras) {
+                    String safeQuery = query == null ? "" : query.trim();
+                    HubDiagnostics.event(HubMediaService.this, "MEDIA-COMPAT onPlayFromSearch: " + safeQuery);
+                    String title = safeQuery.isEmpty() ? "AION V Hub" : "Busca: " + safeQuery;
+                    publishTestMetadata("search_test", title, "Pesquisa por voz Android Auto");
                     setPlaybackState(PlaybackStateCompat.STATE_PLAYING);
                 }
 
@@ -50,11 +54,7 @@ public class HubMediaService extends MediaBrowserServiceCompat {
                 }
             });
 
-            mediaSession.setMetadata(new MediaMetadataCompat.Builder()
-                    .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, "connection_test")
-                    .putString(MediaMetadataCompat.METADATA_KEY_TITLE, "AION V Hub")
-                    .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "Diagnóstico Android Auto")
-                    .build());
+            publishTestMetadata("connection_test", "AION V Hub", "Diagnóstico Android Auto");
 
             setPlaybackState(PlaybackStateCompat.STATE_PAUSED);
             mediaSession.setActive(true);
@@ -66,10 +66,20 @@ public class HubMediaService extends MediaBrowserServiceCompat {
         }
     }
 
+    private void publishTestMetadata(String mediaId, String title, String artist) {
+        if (mediaSession == null) return;
+        mediaSession.setMetadata(new MediaMetadataCompat.Builder()
+                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
+                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
+                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
+                .build());
+    }
+
     private void setPlaybackState(int state) {
         if (mediaSession == null) return;
         long actions = PlaybackStateCompat.ACTION_PLAY |
                 PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID |
+                PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH |
                 PlaybackStateCompat.ACTION_PAUSE |
                 PlaybackStateCompat.ACTION_STOP;
         mediaSession.setPlaybackState(new PlaybackStateCompat.Builder()
