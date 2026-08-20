@@ -32,21 +32,15 @@
             </intent-filter>
         </activity>
 
+        <!-- Mantida apenas para autoteste local no tablet. Não participa da
+             descoberta automotiva para evitar competição com o MediaService. -->
         <activity
             android:name=".BridgeActivity"
-            android:exported="true"
+            android:exported="false"
             android:launchMode="singleTask"
-            android:resizeableActivity="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.CAR_LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="distractionOptimized"
-                android:value="false" />
-        </activity>
+            android:resizeableActivity="true" />
 
+        <!-- Único caminho de descoberta no Android Auto projetado. -->
         <service
             android:name=".HubMediaService"
             android:exported="true"
