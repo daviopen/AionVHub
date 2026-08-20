@@ -4,6 +4,10 @@ android {
     namespace 'com.aionvhub.app'
     compileSdk 35
 
+    buildFeatures {
+        buildConfig true
+    }
+
     defaultConfig {
         applicationId 'com.aionvhub.app'
         minSdk 26
