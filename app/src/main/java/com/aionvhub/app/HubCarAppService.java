@@ -7,9 +7,7 @@ import androidx.car.app.CarContext;
 import androidx.car.app.Screen;
 import androidx.car.app.Session;
 import androidx.car.app.model.Action;
-import androidx.car.app.model.Pane;
-import androidx.car.app.model.PaneTemplate;
-import androidx.car.app.model.Row;
+import androidx.car.app.model.MessageTemplate;
 import androidx.car.app.model.Template;
 import androidx.car.app.validation.HostValidator;
 
@@ -40,22 +38,7 @@ public class HubCarAppService extends CarAppService {
         @NonNull
         @Override
         public Template onGetTemplate() {
-            Row statusRow = new Row.Builder()
-                    .setTitle("AION V Hub conectado")
-                    .addText("Sessão Android Auto ativa")
-                    .build();
-
-            Row infoRow = new Row.Builder()
-                    .setTitle("Versão 0.3.0")
-                    .addText("Teste de integração com Android Auto")
-                    .build();
-
-            Pane pane = new Pane.Builder()
-                    .addRow(statusRow)
-                    .addRow(infoRow)
-                    .build();
-
-            return new PaneTemplate.Builder(pane)
+            return new MessageTemplate.Builder("Integração com Android Auto ativa.")
                     .setTitle("AION V Hub")
                     .setHeaderAction(Action.APP_ICON)
                     .build();
