@@ -16,18 +16,18 @@ public class HubMediaService extends MediaBrowserService {
 
     @Override public void onCreate() {
         super.onCreate();
-        HubDiagnostics.log(this, "MEDIA onCreate");
+        HubDiagnostics.event(this, "MEDIA onCreate");
         try {
             mediaSession = new MediaSession(this, "AionVHubMedia");
-            HubDiagnostics.log(this, "MEDIA MediaSession criada");
+            HubDiagnostics.event(this, "MEDIA MediaSession criada");
 
             mediaSession.setCallback(new MediaSession.Callback() {
                 @Override public void onPlay() {
-                    HubDiagnostics.log(HubMediaService.this, "MEDIA onPlay");
+                    HubDiagnostics.event(HubMediaService.this, "MEDIA onPlay");
                     setPlaybackState(PlaybackState.STATE_PLAYING);
                 }
                 @Override public void onPlayFromMediaId(String mediaId, Bundle extras) {
-                    HubDiagnostics.log(HubMediaService.this, "MEDIA onPlayFromMediaId: " + mediaId);
+                    HubDiagnostics.event(HubMediaService.this, "MEDIA onPlayFromMediaId: " + mediaId);
                     mediaSession.setMetadata(new MediaMetadata.Builder()
                             .putString(MediaMetadata.METADATA_KEY_MEDIA_ID, mediaId)
                             .putString(MediaMetadata.METADATA_KEY_TITLE, "AION V Hub")
@@ -36,11 +36,11 @@ public class HubMediaService extends MediaBrowserService {
                     setPlaybackState(PlaybackState.STATE_PLAYING);
                 }
                 @Override public void onPause() {
-                    HubDiagnostics.log(HubMediaService.this, "MEDIA onPause");
+                    HubDiagnostics.event(HubMediaService.this, "MEDIA onPause");
                     setPlaybackState(PlaybackState.STATE_PAUSED);
                 }
                 @Override public void onStop() {
-                    HubDiagnostics.log(HubMediaService.this, "MEDIA onStop");
+                    HubDiagnostics.event(HubMediaService.this, "MEDIA onStop");
                     setPlaybackState(PlaybackState.STATE_STOPPED);
                 }
             });
@@ -54,9 +54,9 @@ public class HubMediaService extends MediaBrowserService {
             setPlaybackState(PlaybackState.STATE_PAUSED);
             mediaSession.setActive(true);
             setSessionToken(mediaSession.getSessionToken());
-            HubDiagnostics.log(this, "MEDIA session token publicado");
+            HubDiagnostics.event(this, "MEDIA session token publicado");
         } catch (Throwable t) {
-            HubDiagnostics.log(this, "MEDIA ERRO onCreate: " + t.getClass().getSimpleName() + " " + String.valueOf(t.getMessage()));
+            HubDiagnostics.event(this, "MEDIA ERRO onCreate: " + t.getClass().getSimpleName() + " " + String.valueOf(t.getMessage()));
             throw t;
         }
     }
@@ -75,17 +75,17 @@ public class HubMediaService extends MediaBrowserService {
     }
 
     @Override public BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints) {
-        HubDiagnostics.log(this, "MEDIA onGetRoot cliente=" + clientPackageName + " uid=" + clientUid);
+        HubDiagnostics.event(this, "MEDIA onGetRoot cliente=" + clientPackageName + " uid=" + clientUid);
         try {
             return new BrowserRoot("aion_root", null);
         } catch (Throwable t) {
-            HubDiagnostics.log(this, "MEDIA ERRO onGetRoot: " + t.getClass().getSimpleName());
+            HubDiagnostics.event(this, "MEDIA ERRO onGetRoot: " + t.getClass().getSimpleName());
             throw t;
         }
     }
 
     @Override public void onLoadChildren(String parentId, Result<List<MediaBrowser.MediaItem>> result) {
-        HubDiagnostics.log(this, "MEDIA onLoadChildren parent=" + parentId);
+        HubDiagnostics.event(this, "MEDIA onLoadChildren parent=" + parentId);
         try {
             List<MediaBrowser.MediaItem> items = new ArrayList<>();
             if ("aion_root".equals(parentId)) {
@@ -97,20 +97,20 @@ public class HubMediaService extends MediaBrowserService {
                 items.add(new MediaBrowser.MediaItem(description, MediaBrowser.MediaItem.FLAG_PLAYABLE));
             }
             result.sendResult(items);
-            HubDiagnostics.log(this, "MEDIA onLoadChildren resultado=" + items.size());
+            HubDiagnostics.event(this, "MEDIA onLoadChildren resultado=" + items.size());
         } catch (Throwable t) {
-            HubDiagnostics.log(this, "MEDIA ERRO onLoadChildren: " + t.getClass().getSimpleName() + " " + String.valueOf(t.getMessage()));
+            HubDiagnostics.event(this, "MEDIA ERRO onLoadChildren: " + t.getClass().getSimpleName() + " " + String.valueOf(t.getMessage()));
             throw t;
         }
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        HubDiagnostics.log(this, "MEDIA onStartCommand");
+        HubDiagnostics.event(this, "MEDIA onStartCommand");
         return super.onStartCommand(intent, flags, startId);
     }
 
     @Override public void onDestroy() {
-        HubDiagnostics.log(this, "MEDIA onDestroy");
+        HubDiagnostics.event(this, "MEDIA onDestroy");
         if (mediaSession != null) mediaSession.release();
         super.onDestroy();
     }
