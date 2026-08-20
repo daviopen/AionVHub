@@ -51,8 +51,23 @@ jobs:
             echo "Signing secrets not configured; skipping release artifacts."
             exit 0
           fi
+
           KEYSTORE_PATH="$RUNNER_TEMP/aionvhub-upload.jks"
-          printf '%s' "$AION_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+
+          # GitHub secret editors may preserve line breaks/spaces. Strip whitespace
+          # before decoding so a wrapped Base64 value still works.
+          SANITIZED_BASE64="$(printf '%s' "$AION_KEYSTORE_BASE64" | tr -d '[:space:]')"
+
+          if ! printf '%s' "$SANITIZED_BASE64" | base64 --decode > "$KEYSTORE_PATH"; then
+            echo "Invalid AION_KEYSTORE_BASE64 secret. Replace it with the exact contents of AION_KEYSTORE_BASE64.txt."
+            exit 1
+          fi
+
+          if [ ! -s "$KEYSTORE_PATH" ]; then
+            echo "Decoded keystore is empty."
+            exit 1
+          fi
+
           chmod 600 "$KEYSTORE_PATH"
           echo "AION_KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
           echo "AION_KEYSTORE_PASSWORD=$AION_KEYSTORE_PASSWORD_SECRET" >> "$GITHUB_ENV"
