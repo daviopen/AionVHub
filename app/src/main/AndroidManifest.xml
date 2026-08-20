@@ -49,11 +49,12 @@
             android:launchMode="singleTask"
             android:resizeableActivity="true" />
 
-        <!-- Único caminho de descoberta no Android Auto projetado. -->
+        <!-- Único caminho de descoberta no Android Auto projetado.
+             IMPORTANTE: não exigir BIND_MEDIA_BROWSER_SERVICE aqui. O Android Auto
+             (Gearhead) é um cliente externo e precisa conseguir fazer bind no serviço. -->
         <service
             android:name=".HubMediaService"
-            android:exported="true"
-            android:permission="android.permission.BIND_MEDIA_BROWSER_SERVICE">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
