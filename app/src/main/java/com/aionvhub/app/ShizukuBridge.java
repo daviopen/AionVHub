@@ -2,7 +2,6 @@ package com.aionvhub.app;
 
 import android.app.Activity;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
@@ -73,9 +72,15 @@ public final class ShizukuBridge {
     public ShizukuBridge(Activity activity, Listener listener) {
         this.activity = activity;
         this.listener = listener;
-        Shizuku.addBinderReceivedListener(binderReceivedListener);
+
+        // Sticky é importante quando o Shizuku já estava em execução antes de
+        // abrir o AION V Hub. Nesse cenário o evento original do Binder pode ter
+        // ocorrido antes de esta Activity registrar o listener.
+        Shizuku.addBinderReceivedListenerSticky(binderReceivedListener);
         Shizuku.addBinderDeadListener(binderDeadListener);
         Shizuku.addRequestPermissionResultListener(permissionListener);
+
+        notifyState();
         if (binderAlive() && permissionGranted()) bind();
     }
 
@@ -115,7 +120,7 @@ public final class ShizukuBridge {
 
     public String status() {
         if (!installed()) return "NÃO INSTALADO";
-        if (!binderAlive()) return "INSTALADO, mas serviço não está em execução";
+        if (!binderAlive()) return "INSTALADO, mas Binder Shizuku ainda não foi recebido";
         if (!permissionGranted()) return "EM EXECUÇÃO, aguardando autorização do AION V Hub";
         if (remote == null) return binding ? "AUTORIZADO, conectando Bridge privilegiado…" : "AUTORIZADO, Bridge ainda não conectado";
         try { return "PRONTO • UID privilegiado=" + remote.getUid(); }
@@ -129,8 +134,7 @@ public final class ShizukuBridge {
             return;
         }
         if (!binderAlive()) {
-            emit("Shizuku", "Shizuku está instalado, mas não está em execução. Inicie-o por Depuração sem fio.");
-            openShizuku();
+            emit("Shizuku", "Shizuku está em execução, mas o Binder ainda não chegou ao AION V Hub. Feche e reabra o Hub; a v0.7.1 usa detecção sticky para recuperar esse estado automaticamente.");
             return;
         }
         try {
