@@ -79,7 +79,7 @@ public class MainActivity extends Activity {
         scroll.addView(root); setContentView(scroll);
 
         root.addView(label("AION V HUB",28,accent));
-        root.addView(label("v0.4 Bridge • Android Auto • Android 8.0+",16,muted));
+        root.addView(label("v0.5.1 • Proveniência de instalação • Android Auto",16,muted));
         status = label("Analisando conexão…",16,text); root.addView(status);
 
         root.addView(label("Diagnóstico do sistema",22,text));
@@ -105,7 +105,7 @@ public class MainActivity extends Activity {
         root.addView(button("Testar navegador", v -> openUri("https://www.google.com")));
 
         TextView info = label(
-                "Como interpretar: o autoteste prova se o serviço do AION V Hub funciona no próprio aparelho. Se ele passar e o Android Auto continuar sem chamar o serviço, a barreira está na descoberta/aceitação pelo host. Eventos BRIDGE indicam que uma atividade automotiva foi aberta; eventos MEDIA-COMPAT indicam que o serviço de mídia foi chamado.",
+                "Como interpretar: o autoteste prova se o serviço do AION V Hub funciona no próprio aparelho. A seção de proveniência mostra quem realmente iniciou a instalação, quem ficou registrado como instalador e a fonte do pacote. Isso ajuda a distinguir sideload comum de uma instalação tratada como loja pelo Android.",
                 14,
                 muted
         );
@@ -139,7 +139,13 @@ public class MainActivity extends Activity {
         addDiag("Versão", BuildConfig.VERSION_NAME + " (code " + BuildConfig.VERSION_CODE + ")");
         addDiag("Package", getPackageName());
         addDiag("Assinatura SHA-256", ownSignatureFingerprint());
-        addDiag("Instalador", installerPackage());
+
+        addSection("Proveniência da instalação");
+        addDiag("Instalador registrado", installerPackage());
+        addDiag("Iniciador real", initiatingPackage());
+        addDiag("Origem declarada", originatingPackage());
+        addDiag("Fonte do pacote", packageSource());
+        addDiag("Dono das atualizações", updateOwnerPackage());
 
         addSection("Telefone");
         addDiag("Android", Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")");
@@ -152,6 +158,7 @@ public class MainActivity extends Activity {
         addDiag("Google Play Services", packageVersion("com.google.android.gms"));
         addDiag("Conexão com carro", connection);
         addDiag("Modo desenvolvedor", "não verificável por API");
+        addDiag("Application Mode = Developer", "confirme manualmente nas opções do Android Auto");
         addDiag("Fontes desconhecidas", "não verificável por API");
 
         addSection("AION V Hub Bridge");
@@ -349,17 +356,75 @@ public class MainActivity extends Activity {
         return out.isEmpty() ? "outro" : android.text.TextUtils.join(" + ", out);
     }
 
+    private InstallSourceInfo installSourceInfo() {
+        if (Build.VERSION.SDK_INT < 30) return null;
+        try {
+            return getPackageManager().getInstallSourceInfo(getPackageName());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private String installerPackage() {
         try {
             if (Build.VERSION.SDK_INT >= 30) {
-                InstallSourceInfo i = getPackageManager().getInstallSourceInfo(getPackageName());
-                String p = i.getInstallingPackageName();
+                InstallSourceInfo i = installSourceInfo();
+                String p = i == null ? null : i.getInstallingPackageName();
                 return p == null ? "sideload / desconhecido" : p;
             }
             String p = getPackageManager().getInstallerPackageName(getPackageName());
             return p == null ? "sideload / desconhecido" : p;
         } catch (Exception e) {
             return "desconhecido";
+        }
+    }
+
+    private String initiatingPackage() {
+        if (Build.VERSION.SDK_INT < 30) return "API < 30";
+        try {
+            InstallSourceInfo i = installSourceInfo();
+            String p = i == null ? null : i.getInitiatingPackageName();
+            return p == null ? "não informado" : p;
+        } catch (Exception e) {
+            return "indisponível: " + e.getClass().getSimpleName();
+        }
+    }
+
+    private String originatingPackage() {
+        if (Build.VERSION.SDK_INT < 30) return "API < 30";
+        try {
+            InstallSourceInfo i = installSourceInfo();
+            String p = i == null ? null : i.getOriginatingPackageName();
+            return p == null ? "não informado / acesso restrito" : p;
+        } catch (Exception e) {
+            return "indisponível: " + e.getClass().getSimpleName();
+        }
+    }
+
+    private String packageSource() {
+        if (Build.VERSION.SDK_INT < 33) return "API < 33";
+        try {
+            InstallSourceInfo i = installSourceInfo();
+            if (i == null) return "indisponível";
+            int source = i.getPackageSource();
+            if (source == PackageInstaller.PACKAGE_SOURCE_STORE) return "STORE (loja)";
+            if (source == PackageInstaller.PACKAGE_SOURCE_LOCAL_FILE) return "LOCAL_FILE (arquivo local)";
+            if (source == PackageInstaller.PACKAGE_SOURCE_DOWNLOADED_FILE) return "DOWNLOADED_FILE (arquivo baixado)";
+            if (source == PackageInstaller.PACKAGE_SOURCE_OTHER) return "OTHER (outra origem)";
+            return "UNSPECIFIED (não especificada)";
+        } catch (Exception e) {
+            return "indisponível: " + e.getClass().getSimpleName();
+        }
+    }
+
+    private String updateOwnerPackage() {
+        if (Build.VERSION.SDK_INT < 34) return "API < 34";
+        try {
+            InstallSourceInfo i = installSourceInfo();
+            String p = i == null ? null : i.getUpdateOwnerPackageName();
+            return p == null ? "nenhum" : p;
+        } catch (Exception e) {
+            return "indisponível: " + e.getClass().getSimpleName();
         }
     }
 
