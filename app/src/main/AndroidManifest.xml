@@ -17,7 +17,8 @@
         android:hardwareAccelerated="true"
         android:icon="@drawable/ic_aion_hub"
         android:label="AION V Hub"
-        android:theme="@style/AppTheme">
+        android:theme="@style/AppTheme"
+        android:usesCleartextTraffic="true">
 
         <provider
             android:name="rikka.shizuku.ShizukuProvider"
@@ -40,16 +41,9 @@
             </intent-filter>
         </activity>
 
-        <!-- Diagnóstico completo preservado da versão que validou o Bridge. -->
-        <activity
-            android:name=".MainActivity"
-            android:exported="false" />
+        <activity android:name=".MainActivity" android:exported="false" />
+        <activity android:name=".StreamSettingsActivity" android:exported="false" />
 
-        <activity
-            android:name=".StreamSettingsActivity"
-            android:exported="false" />
-
-        <!-- Player visual local do tablet. Não participa da descoberta do Android Auto. -->
         <activity
             android:name=".VideoPlayerActivity"
             android:exported="false"
@@ -61,8 +55,7 @@
             android:launchMode="singleTask"
             android:resizeableActivity="true" />
 
-        <!-- Único caminho de descoberta no Android Auto projetado.
-             Não exigir BIND_MEDIA_BROWSER_SERVICE: o Gearhead precisa fazer bind. -->
+        <!-- Caminho validado no Android Auto 17.3. Não exigir BIND_MEDIA_BROWSER_SERVICE. -->
         <service
             android:name=".HubMediaService"
             android:exported="true">
