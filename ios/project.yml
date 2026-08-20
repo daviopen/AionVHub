@@ -1,0 +1,24 @@
+name: AionVHub
+options:
+  bundleIdPrefix: br.com.aionvhub
+settings:
+  base:
+    SWIFT_VERSION: 5.0
+    IPHONEOS_DEPLOYMENT_TARGET: 16.0
+targets:
+  AionVHub:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: AionVHub
+    info:
+      path: AionVHub/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: br.com.aionvhub.ios
+        PRODUCT_NAME: AionVHub
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+    scheme:
+      testTargets: []
