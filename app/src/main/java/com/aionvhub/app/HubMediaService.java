@@ -1,116 +1,114 @@
 package com.aionvhub.app;
 
 import android.content.Intent;
-import android.media.MediaDescription;
-import android.media.MediaMetadata;
-import android.media.browse.MediaBrowser;
-import android.media.session.MediaSession;
-import android.media.session.PlaybackState;
 import android.os.Bundle;
-import android.service.media.MediaBrowserService;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.media.MediaBrowserServiceCompat;
+import android.support.v4.media.MediaBrowserCompat;
+import android.support.v4.media.MediaDescriptionCompat;
+import android.support.v4.media.MediaMetadataCompat;
+import android.support.v4.media.session.MediaSessionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
 import java.util.ArrayList;
 import java.util.List;
 
-public class HubMediaService extends MediaBrowserService {
-    private MediaSession mediaSession;
+public class HubMediaService extends MediaBrowserServiceCompat {
+    private MediaSessionCompat mediaSession;
 
     @Override public void onCreate() {
         super.onCreate();
-        HubDiagnostics.event(this, "MEDIA onCreate");
+        HubDiagnostics.event(this, "MEDIA-COMPAT onCreate");
         try {
-            mediaSession = new MediaSession(this, "AionVHubMedia");
-            HubDiagnostics.event(this, "MEDIA MediaSession criada");
+            mediaSession = new MediaSessionCompat(this, "AionVHubMedia");
+            HubDiagnostics.event(this, "MEDIA-COMPAT MediaSession criada");
 
-            mediaSession.setCallback(new MediaSession.Callback() {
+            mediaSession.setCallback(new MediaSessionCompat.Callback() {
                 @Override public void onPlay() {
-                    HubDiagnostics.event(HubMediaService.this, "MEDIA onPlay");
-                    setPlaybackState(PlaybackState.STATE_PLAYING);
+                    HubDiagnostics.event(HubMediaService.this, "MEDIA-COMPAT onPlay");
+                    setPlaybackState(PlaybackStateCompat.STATE_PLAYING);
                 }
+
                 @Override public void onPlayFromMediaId(String mediaId, Bundle extras) {
-                    HubDiagnostics.event(HubMediaService.this, "MEDIA onPlayFromMediaId: " + mediaId);
-                    mediaSession.setMetadata(new MediaMetadata.Builder()
-                            .putString(MediaMetadata.METADATA_KEY_MEDIA_ID, mediaId)
-                            .putString(MediaMetadata.METADATA_KEY_TITLE, "AION V Hub")
-                            .putString(MediaMetadata.METADATA_KEY_ARTIST, "Teste Android Auto")
+                    HubDiagnostics.event(HubMediaService.this, "MEDIA-COMPAT onPlayFromMediaId: " + mediaId);
+                    mediaSession.setMetadata(new MediaMetadataCompat.Builder()
+                            .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
+                            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, "AION V Hub")
+                            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "Teste Android Auto")
                             .build());
-                    setPlaybackState(PlaybackState.STATE_PLAYING);
+                    setPlaybackState(PlaybackStateCompat.STATE_PLAYING);
                 }
+
                 @Override public void onPause() {
-                    HubDiagnostics.event(HubMediaService.this, "MEDIA onPause");
-                    setPlaybackState(PlaybackState.STATE_PAUSED);
+                    HubDiagnostics.event(HubMediaService.this, "MEDIA-COMPAT onPause");
+                    setPlaybackState(PlaybackStateCompat.STATE_PAUSED);
                 }
+
                 @Override public void onStop() {
-                    HubDiagnostics.event(HubMediaService.this, "MEDIA onStop");
-                    setPlaybackState(PlaybackState.STATE_STOPPED);
+                    HubDiagnostics.event(HubMediaService.this, "MEDIA-COMPAT onStop");
+                    setPlaybackState(PlaybackStateCompat.STATE_STOPPED);
                 }
             });
 
-            mediaSession.setMetadata(new MediaMetadata.Builder()
-                    .putString(MediaMetadata.METADATA_KEY_MEDIA_ID, "connection_test")
-                    .putString(MediaMetadata.METADATA_KEY_TITLE, "AION V Hub")
-                    .putString(MediaMetadata.METADATA_KEY_ARTIST, "Diagnóstico Android Auto")
+            mediaSession.setMetadata(new MediaMetadataCompat.Builder()
+                    .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, "connection_test")
+                    .putString(MediaMetadataCompat.METADATA_KEY_TITLE, "AION V Hub")
+                    .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "Diagnóstico Android Auto")
                     .build());
 
-            setPlaybackState(PlaybackState.STATE_PAUSED);
+            setPlaybackState(PlaybackStateCompat.STATE_PAUSED);
             mediaSession.setActive(true);
             setSessionToken(mediaSession.getSessionToken());
-            HubDiagnostics.event(this, "MEDIA session token publicado");
+            HubDiagnostics.event(this, "MEDIA-COMPAT session token publicado");
         } catch (Throwable t) {
-            HubDiagnostics.event(this, "MEDIA ERRO onCreate: " + t.getClass().getSimpleName() + " " + String.valueOf(t.getMessage()));
+            HubDiagnostics.event(this, "MEDIA-COMPAT ERRO onCreate: " + t.getClass().getSimpleName() + " " + String.valueOf(t.getMessage()));
             throw t;
         }
     }
 
     private void setPlaybackState(int state) {
         if (mediaSession == null) return;
-        long actions = PlaybackState.ACTION_PLAY |
-                PlaybackState.ACTION_PLAY_FROM_MEDIA_ID |
-                PlaybackState.ACTION_PAUSE |
-                PlaybackState.ACTION_STOP;
-        mediaSession.setPlaybackState(new PlaybackState.Builder()
+        long actions = PlaybackStateCompat.ACTION_PLAY |
+                PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID |
+                PlaybackStateCompat.ACTION_PAUSE |
+                PlaybackStateCompat.ACTION_STOP;
+        mediaSession.setPlaybackState(new PlaybackStateCompat.Builder()
                 .setActions(actions)
-                .setState(state, PlaybackState.PLAYBACK_POSITION_UNKNOWN,
-                        state == PlaybackState.STATE_PLAYING ? 1f : 0f)
+                .setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN,
+                        state == PlaybackStateCompat.STATE_PLAYING ? 1f : 0f)
                 .build());
     }
 
-    @Override public BrowserRoot onGetRoot(String clientPackageName, int clientUid, Bundle rootHints) {
-        HubDiagnostics.event(this, "MEDIA onGetRoot cliente=" + clientPackageName + " uid=" + clientUid);
-        try {
-            return new BrowserRoot("aion_root", null);
-        } catch (Throwable t) {
-            HubDiagnostics.event(this, "MEDIA ERRO onGetRoot: " + t.getClass().getSimpleName());
-            throw t;
-        }
+    @Nullable
+    @Override
+    public BrowserRoot onGetRoot(@NonNull String clientPackageName, int clientUid, @Nullable Bundle rootHints) {
+        HubDiagnostics.event(this, "MEDIA-COMPAT onGetRoot cliente=" + clientPackageName + " uid=" + clientUid);
+        return new BrowserRoot("aion_root", null);
     }
 
-    @Override public void onLoadChildren(String parentId, Result<List<MediaBrowser.MediaItem>> result) {
-        HubDiagnostics.event(this, "MEDIA onLoadChildren parent=" + parentId);
-        try {
-            List<MediaBrowser.MediaItem> items = new ArrayList<>();
-            if ("aion_root".equals(parentId)) {
-                MediaDescription description = new MediaDescription.Builder()
-                        .setMediaId("connection_test")
-                        .setTitle("AION V Hub")
-                        .setSubtitle("Teste de integração Android Auto")
-                        .build();
-                items.add(new MediaBrowser.MediaItem(description, MediaBrowser.MediaItem.FLAG_PLAYABLE));
-            }
-            result.sendResult(items);
-            HubDiagnostics.event(this, "MEDIA onLoadChildren resultado=" + items.size());
-        } catch (Throwable t) {
-            HubDiagnostics.event(this, "MEDIA ERRO onLoadChildren: " + t.getClass().getSimpleName() + " " + String.valueOf(t.getMessage()));
-            throw t;
+    @Override
+    public void onLoadChildren(@NonNull String parentId, @NonNull Result<List<MediaBrowserCompat.MediaItem>> result) {
+        HubDiagnostics.event(this, "MEDIA-COMPAT onLoadChildren parent=" + parentId);
+        List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
+        if ("aion_root".equals(parentId)) {
+            MediaDescriptionCompat description = new MediaDescriptionCompat.Builder()
+                    .setMediaId("connection_test")
+                    .setTitle("AION V Hub")
+                    .setSubtitle("Teste de integração Android Auto")
+                    .build();
+            items.add(new MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE));
         }
+        result.sendResult(items);
+        HubDiagnostics.event(this, "MEDIA-COMPAT onLoadChildren resultado=" + items.size());
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        HubDiagnostics.event(this, "MEDIA onStartCommand");
+        HubDiagnostics.event(this, "MEDIA-COMPAT onStartCommand");
         return super.onStartCommand(intent, flags, startId);
     }
 
     @Override public void onDestroy() {
-        HubDiagnostics.event(this, "MEDIA onDestroy");
+        HubDiagnostics.event(this, "MEDIA-COMPAT onDestroy");
         if (mediaSession != null) mediaSession.release();
         super.onDestroy();
     }
