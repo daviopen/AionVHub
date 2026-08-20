@@ -4,13 +4,16 @@ import android.app.*;
 import android.os.*;
 import android.content.*;
 import android.content.pm.*;
+import android.content.res.XmlResourceParser;
 import android.graphics.Color;
 import android.net.*;
 import android.provider.Settings;
 import android.view.*;
 import android.widget.*;
+import android.support.v4.media.MediaBrowserCompat;
 import androidx.car.app.connection.CarConnection;
 import androidx.lifecycle.Observer;
+import org.xmlpull.v1.XmlPullParser;
 import java.security.MessageDigest;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -26,6 +29,7 @@ public class MainActivity extends Activity {
     private int carConnectionType = CarConnection.CONNECTION_TYPE_NOT_CONNECTED;
     private CarConnection carConnection;
     private Observer<Integer> carObserver;
+    private MediaBrowserCompat selfTestBrowser;
 
     @Override public void onCreate(Bundle b) {
         super.onCreate(b);
@@ -42,6 +46,9 @@ public class MainActivity extends Activity {
     @Override protected void onDestroy() {
         if (carConnection != null && carObserver != null) {
             carConnection.getType().removeObserver(carObserver);
+        }
+        if (selfTestBrowser != null && selfTestBrowser.isConnected()) {
+            selfTestBrowser.disconnect();
         }
         super.onDestroy();
     }
@@ -72,12 +79,16 @@ public class MainActivity extends Activity {
         scroll.addView(root); setContentView(scroll);
 
         root.addView(label("AION V HUB",28,accent));
-        root.addView(label("Diagnóstico avançado • Android 8.0+ • Android Auto",16,muted));
+        root.addView(label("v0.4 Bridge • Android Auto • Android 8.0+",16,muted));
         status = label("Analisando conexão…",16,text); root.addView(status);
 
         root.addView(label("Diagnóstico do sistema",22,text));
         diagBox = new LinearLayout(this); diagBox.setOrientation(LinearLayout.VERTICAL); diagBox.setPadding(22,18,22,18); diagBox.setBackgroundColor(panel); root.addView(diagBox);
         root.addView(button("Atualizar diagnóstico", v -> refreshDiagnostics()));
+
+        root.addView(label("Testes do Bridge",22,text));
+        root.addView(button("Autoteste do serviço de mídia", v -> runMediaSelfTest()));
+        root.addView(button("Abrir Bridge diretamente no telefone", v -> openBridgeLocally()));
 
         root.addView(label("Eventos do Android Auto",22,text));
         logBox = new LinearLayout(this); logBox.setOrientation(LinearLayout.VERTICAL); logBox.setPadding(22,18,22,18); logBox.setBackgroundColor(panel); root.addView(logBox);
@@ -93,10 +104,14 @@ public class MainActivity extends Activity {
         root.addView(button("Abrir configurações do Android Auto", v -> openAndroidAutoSettings()));
         root.addView(button("Testar navegador", v -> openUri("https://www.google.com")));
 
-        TextView info = label("Como interpretar: se o histórico chegar até 'onGetTemplate', o Android Auto abriu nosso serviço e pediu a tela. Se parar antes disso, saberemos exatamente em qual etapa o host interrompeu o processo.",14,muted);
+        TextView info = label(
+                "Como interpretar: o autoteste prova se o serviço do AION V Hub funciona no próprio aparelho. Se ele passar e o Android Auto continuar sem chamar o serviço, a barreira está na descoberta/aceitação pelo host. Eventos BRIDGE indicam que uma atividade automotiva foi aberta; eventos MEDIA-COMPAT indicam que o serviço de mídia foi chamado.",
+                14,
+                muted
+        );
         info.setPadding(0,24,0,8); root.addView(info);
 
-        TextView warning = label("Segurança: o app não remove bloqueios de movimento e não força vídeo durante a condução.",14,muted);
+        TextView warning = label("Segurança: o Bridge não remove bloqueios de movimento e não força vídeo durante a condução.",14,muted);
         root.addView(warning);
     }
 
@@ -139,14 +154,15 @@ public class MainActivity extends Activity {
         addDiag("Modo desenvolvedor", "não verificável por API");
         addDiag("Fontes desconhecidas", "não verificável por API");
 
-        addSection("Registro automotivo");
-        addDiag("CarAppService declarado", serviceDeclared(HubCarAppService.class) ? "SIM" : "NÃO");
-        addDiag("MediaBrowserService declarado", serviceDeclared(HubMediaService.class) ? "SIM" : "NÃO");
-        addDiag("Categoria Car App", "POI");
-        addDiag("Descritor automotivo", "media + template");
-        addDiag("Car API mínima", "1");
-        addDiag("Último evento do host", HubDiagnostics.getLastEvent(this));
+        addSection("AION V Hub Bridge");
+        addDiag("Estratégia", "Dual Bridge: MediaBrowserServiceCompat + CAR_LAUNCHER");
+        addDiag("BridgeActivity CAR_LAUNCHER", activityDeclared(BridgeActivity.class) ? "SIM" : "NÃO");
+        addDiag("MediaBrowserServiceCompat", serviceDeclared(HubMediaService.class) ? "SIM" : "NÃO");
+        addDiag("CarAppService legado", serviceDeclared(HubCarAppService.class) ? "SIM" : "NÃO — removido do manifest v0.4");
+        addDiag("Descritor automotivo real", automotiveDescriptor());
+        addDiag("Último evento", HubDiagnostics.getLastEvent(this));
         addDiag("Tempo desde último evento", eventAge());
+        addDiag("Leitura do estado", interpretBridgeState());
 
         addSection("Rede");
         addDiag("Transporte ativo", networkTransport(caps));
@@ -170,12 +186,115 @@ public class MainActivity extends Activity {
         }
 
         if (carConnectionType == CarConnection.CONNECTION_TYPE_PROJECTION) {
-            status.setText("✓ Android Auto conectado • último host: " + HubDiagnostics.getLastEvent(this));
+            status.setText("✓ Android Auto conectado • Bridge: " + shortBridgeState());
         } else if (carConnectionType == CarConnection.CONNECTION_TYPE_NATIVE) {
-            status.setText("✓ Android Automotive detectado");
+            status.setText("✓ Android Automotive detectado • Bridge: " + shortBridgeState());
         } else {
             status.setText("○ Aguardando conexão com Android Auto");
         }
+    }
+
+    private void runMediaSelfTest() {
+        try {
+            if (selfTestBrowser != null && selfTestBrowser.isConnected()) selfTestBrowser.disconnect();
+        } catch (Exception ignored) {}
+
+        HubDiagnostics.event(this, "SELFTEST iniciando MediaBrowserCompat");
+        Toast.makeText(this, "Executando autoteste…", Toast.LENGTH_SHORT).show();
+
+        selfTestBrowser = new MediaBrowserCompat(
+                this,
+                new ComponentName(this, HubMediaService.class),
+                new MediaBrowserCompat.ConnectionCallback() {
+                    @Override public void onConnected() {
+                        try {
+                            String rootId = selfTestBrowser.getRoot();
+                            HubDiagnostics.event(MainActivity.this, "SELFTEST conectado root=" + rootId);
+                            selfTestBrowser.subscribe(rootId, new MediaBrowserCompat.SubscriptionCallback() {
+                                @Override public void onChildrenLoaded(String parentId, List<MediaBrowserCompat.MediaItem> children) {
+                                    HubDiagnostics.event(MainActivity.this, "SELFTEST OK children=" + children.size());
+                                    Toast.makeText(MainActivity.this, "Autoteste OK: serviço de mídia respondeu.", Toast.LENGTH_LONG).show();
+                                    try { selfTestBrowser.unsubscribe(parentId); selfTestBrowser.disconnect(); } catch (Exception ignored) {}
+                                    refreshDiagnostics();
+                                }
+
+                                @Override public void onError(String parentId) {
+                                    HubDiagnostics.event(MainActivity.this, "SELFTEST ERRO subscribe=" + parentId);
+                                    Toast.makeText(MainActivity.this, "Autoteste falhou ao listar mídia.", Toast.LENGTH_LONG).show();
+                                    refreshDiagnostics();
+                                }
+                            });
+                        } catch (Throwable t) {
+                            HubDiagnostics.event(MainActivity.this, "SELFTEST EXCEÇÃO " + t.getClass().getSimpleName());
+                            refreshDiagnostics();
+                        }
+                    }
+
+                    @Override public void onConnectionSuspended() {
+                        HubDiagnostics.event(MainActivity.this, "SELFTEST conexão suspensa");
+                        refreshDiagnostics();
+                    }
+
+                    @Override public void onConnectionFailed() {
+                        HubDiagnostics.event(MainActivity.this, "SELFTEST FALHOU conexão");
+                        Toast.makeText(MainActivity.this, "Autoteste falhou: serviço não conectou.", Toast.LENGTH_LONG).show();
+                        refreshDiagnostics();
+                    }
+                },
+                null
+        );
+        selfTestBrowser.connect();
+    }
+
+    private void openBridgeLocally() {
+        HubDiagnostics.event(this, "SELFTEST abrindo BridgeActivity localmente");
+        startActivity(new Intent(this, BridgeActivity.class));
+    }
+
+    private String interpretBridgeState() {
+        String log = HubDiagnostics.getLog(this);
+        if (log.contains("onGetRoot cliente=com.google.android.projection.gearhead")) {
+            return "ANDROID AUTO CHAMOU O SERVIÇO DE MÍDIA";
+        }
+        if (log.contains("MEDIA-COMPAT onGetRoot cliente=com.aionvhub.app") && log.contains("SELFTEST OK")) {
+            return "SERVIÇO LOCAL OK; aguardando o Android Auto chamar";
+        }
+        if (log.contains("BRIDGE onCreate")) {
+            return "BridgeActivity já foi iniciada; confira se o evento veio do host ou do teste local";
+        }
+        if (carConnectionType == CarConnection.CONNECTION_TYPE_PROJECTION) {
+            return "Android Auto conectado; nenhum caminho do Bridge foi chamado ainda";
+        }
+        return "aguardando conexão / teste";
+    }
+
+    private String shortBridgeState() {
+        String full = interpretBridgeState();
+        if (full.startsWith("ANDROID AUTO")) return "HOST OK";
+        if (full.startsWith("SERVIÇO LOCAL")) return "LOCAL OK / HOST PENDENTE";
+        if (full.startsWith("BridgeActivity")) return "ACTIVITY REGISTRADA";
+        return "AGUARDANDO HOST";
+    }
+
+    private String automotiveDescriptor() {
+        List<String> uses = new ArrayList<>();
+        XmlResourceParser parser = null;
+        try {
+            parser = getResources().getXml(R.xml.automotive_app_desc);
+            int event = parser.getEventType();
+            while (event != XmlPullParser.END_DOCUMENT) {
+                if (event == XmlPullParser.START_TAG && "uses".equals(parser.getName())) {
+                    String name = parser.getAttributeValue(null, "name");
+                    if (name != null && !name.trim().isEmpty()) uses.add(name.trim());
+                }
+                event = parser.next();
+            }
+        } catch (Exception e) {
+            return "erro ao ler XML: " + e.getClass().getSimpleName();
+        } finally {
+            if (parser != null) parser.close();
+        }
+        return uses.isEmpty() ? "nenhum <uses>" : android.text.TextUtils.join(" + ", uses);
     }
 
     private void addSection(String title) {
@@ -204,6 +323,15 @@ public class MainActivity extends Activity {
     private boolean serviceDeclared(Class<?> cls) {
         try {
             getPackageManager().getServiceInfo(new ComponentName(this, cls), 0);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean activityDeclared(Class<?> cls) {
+        try {
+            getPackageManager().getActivityInfo(new ComponentName(this, cls), 0);
             return true;
         } catch (Exception e) {
             return false;
