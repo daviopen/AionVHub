@@ -139,9 +139,11 @@ public class HubMediaService extends MediaBrowserServiceCompat {
             int clientUid,
             @Nullable Bundle rootHints
     ) {
+        // Mantém a assinatura antiga do evento para o diagnóstico já existente
+        // na MainActivity, acrescentando o marcador v2 para diferenciar a nova arquitetura.
         HubDiagnostics.event(
                 this,
-                "MEDIA-V2 onGetRoot cliente=" + clientPackageName + " uid=" + clientUid
+                "MEDIA-COMPAT onGetRoot cliente=" + clientPackageName + " uid=" + clientUid + " v2"
         );
 
         Bundle extras = new Bundle();
