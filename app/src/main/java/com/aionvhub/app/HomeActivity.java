@@ -1,9 +1,9 @@
 package com.aionvhub.app;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Color;
-import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -93,7 +93,14 @@ public class HomeActivity extends Activity {
             startActivity(new Intent(this, StreamSettingsActivity.class));
             return;
         }
-        startActivity(new Intent(this, VideoPlayerActivity.class));
+
+        new AlertDialog.Builder(this)
+                .setTitle("Vídeo somente estacionado")
+                .setMessage("O player visual é destinado a uso com o veículo estacionado. O AION V Hub não remove nem contorna bloqueios de segurança do Android Auto.")
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("Estou estacionado", (dialog, which) ->
+                        startActivity(new Intent(this, VideoPlayerActivity.class)))
+                .show();
     }
 
     private void openPackage(String packageName) {
