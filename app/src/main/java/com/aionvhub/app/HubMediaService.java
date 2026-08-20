@@ -1,12 +1,11 @@
 package com.aionvhub.app;
 
 import android.media.MediaDescription;
-import android.media.MediaMetadata;
 import android.media.browse.MediaBrowser;
-import android.media.browse.MediaBrowserService;
 import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
 import android.os.Bundle;
+import android.service.media.MediaBrowserService;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -58,9 +57,7 @@ public class HubMediaService extends MediaBrowserService {
     }
 
     @Override public void onDestroy() {
-        if (mediaSession != null) {
-            mediaSession.release();
-        }
+        if (mediaSession != null) mediaSession.release();
         super.onDestroy();
     }
 }
