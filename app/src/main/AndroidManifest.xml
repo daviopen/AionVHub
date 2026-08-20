@@ -30,18 +30,8 @@
             </intent-filter>
         </activity>
 
-        <service
-            android:name=".HubCarAppService"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="androidx.car.app.CarAppService" />
-                <category android:name="androidx.car.app.category.POI" />
-            </intent-filter>
-            <meta-data
-                android:name="androidx.car.app.minCarApiLevel"
-                android:value="1" />
-        </service>
-
+        <!-- v0.3.6: estratégia isolada de Media Bridge. O CarAppService POI foi
+             removido do manifest para não competir com a descoberta de mídia. -->
         <service
             android:name=".HubMediaService"
             android:exported="true"
