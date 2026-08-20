@@ -19,7 +19,6 @@
         android:label="AION V Hub"
         android:theme="@style/AppTheme">
 
-        <!-- Canal oficial pelo qual o servidor Shizuku entrega o Binder ao app. -->
         <provider
             android:name="rikka.shizuku.ShizukuProvider"
             android:authorities="${applicationId}.shizuku"
@@ -33,7 +32,7 @@
             android:resource="@xml/automotive_app_desc" />
 
         <activity
-            android:name=".MainActivity"
+            android:name=".HomeActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -41,8 +40,21 @@
             </intent-filter>
         </activity>
 
-        <!-- Mantida apenas para autoteste local no tablet. Não participa da
-             descoberta automotiva para evitar competição com o MediaService. -->
+        <!-- Diagnóstico completo preservado da versão que validou o Bridge. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".StreamSettingsActivity"
+            android:exported="false" />
+
+        <!-- Player visual local do tablet. Não participa da descoberta do Android Auto. -->
+        <activity
+            android:name=".VideoPlayerActivity"
+            android:exported="false"
+            android:resizeableActivity="true" />
+
         <activity
             android:name=".BridgeActivity"
             android:exported="false"
@@ -50,8 +62,7 @@
             android:resizeableActivity="true" />
 
         <!-- Único caminho de descoberta no Android Auto projetado.
-             IMPORTANTE: não exigir BIND_MEDIA_BROWSER_SERVICE aqui. O Android Auto
-             (Gearhead) é um cliente externo e precisa conseguir fazer bind no serviço. -->
+             Não exigir BIND_MEDIA_BROWSER_SERVICE: o Gearhead precisa fazer bind. -->
         <service
             android:name=".HubMediaService"
             android:exported="true">
