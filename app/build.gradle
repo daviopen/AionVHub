@@ -40,7 +40,7 @@ android {
 dependencies {
     implementation 'androidx.car.app:app:1.7.0'
     implementation 'androidx.car.app:app-projected:1.7.0'
-    implementation 'androidx.media:media:1.7.0'
+    implementation 'androidx.media:media:1.8.0'
 
     // Integração direta com Shizuku. O app continua funcionando sem Shizuku;
     // os recursos privilegiados ficam disponíveis apenas quando o usuário autoriza.
