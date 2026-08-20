@@ -64,7 +64,7 @@ public class MainActivity extends Activity {
         scroll.addView(root); setContentView(scroll);
 
         root.addView(label("AION V HUB",28,accent));
-        root.addView(label("v0.2 • Android 8.0+ • diagnóstico Android Auto",16,muted));
+        root.addView(label("v0.3 • Android 8.0+ • CarAppService Android Auto",16,muted));
         status = label("Analisando conexão…",16,text); root.addView(status);
 
         root.addView(label("Diagnóstico",22,text));
@@ -81,7 +81,7 @@ public class MainActivity extends Activity {
         root.addView(button("Abrir configurações do Android Auto", v -> openAndroidAutoSettings()));
         root.addView(button("Testar navegador", v -> openUri("https://www.google.com")));
 
-        TextView info = label("A v0.2 também registra um serviço de mídia de teste para o Android Auto. Em APKs instalados fora da Play Store, pode ser necessário ativar o modo de desenvolvedor do Android Auto e a opção de fontes desconhecidas para apps de mídia.",14,muted);
+        TextView info = label("A v0.3 registra um CarAppService real e uma tela própria para o host do Android Auto, mantendo também o serviço de mídia de teste.",14,muted);
         info.setPadding(0,24,0,8); root.addView(info);
 
         TextView warning = label("Segurança: o app não remove bloqueios de movimento e não força vídeo durante a condução.",14,muted);
@@ -110,12 +110,13 @@ public class MainActivity extends Activity {
         else if (carConnectionType == CarConnection.CONNECTION_TYPE_NATIVE) connection = "Android Automotive nativo";
         else connection = "não conectado";
 
-        addDiag("Versão do Hub", "0.2.0");
+        addDiag("Versão do Hub", "0.3.0");
         addDiag("Android", Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")");
         addDiag("Compatibilidade", Build.VERSION.SDK_INT >= 26 ? "compatível" : "Android 8.0+ necessário");
         addDiag("Dispositivo", Build.MANUFACTURER + " " + Build.MODEL);
         addDiag("Android Auto no sistema", aaPackage ? "localizado" : "não visível / integrado ao sistema");
         addDiag("Conexão com carro", connection);
+        addDiag("CarAppService", "registrado (categoria POI)");
         addDiag("Internet", online ? "conectada" : "sem conexão detectada");
         addDiag("Waze", isInstalled("com.waze") ? "instalado" : "não instalado");
         addDiag("YouTube", isInstalled("com.google.android.youtube") ? "instalado" : "não instalado");
