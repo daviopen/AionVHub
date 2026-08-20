@@ -101,7 +101,7 @@ public class MainActivity extends Activity {
         scroll.addView(root); setContentView(scroll);
 
         root.addView(label("AION V HUB",28,accent));
-        root.addView(label("v0.6 • Bridge autônomo • Shizuku integrado • Android Auto",16,muted));
+        root.addView(label("v0.7 • Media Browser v2 • Shizuku integrado • Android Auto",16,muted));
         status = label("Analisando conexão…",16,text); root.addView(status);
 
         root.addView(label("Diagnóstico do sistema",22,text));
@@ -130,7 +130,7 @@ public class MainActivity extends Activity {
         root.addView(button("Copiar saída privilegiada", v -> copyPrivilegedOutput()));
 
         root.addView(label("Testes do Bridge Android Auto",22,text));
-        root.addView(button("Autoteste do serviço de mídia", v -> runMediaSelfTest()));
+        root.addView(button("Autoteste completo do Media Browser v2", v -> runMediaSelfTest()));
         root.addView(button("Abrir Bridge diretamente no telefone", v -> openBridgeLocally()));
 
         root.addView(label("Eventos do Android Auto",22,text));
@@ -148,7 +148,7 @@ public class MainActivity extends Activity {
         root.addView(button("Testar navegador", v -> openUri("https://www.google.com")));
 
         TextView info = label(
-                "Como interpretar: o autoteste valida o serviço do AION V Hub. O diagnóstico privilegiado usa o Shizuku autorizado pelo usuário para consultar o Package Manager e logs locais do Android Auto, procurando evidências de aceitação ou rejeição do pacote. O app continua funcional mesmo sem Shizuku.",
+                "Como interpretar: a v0.7 valida árvore de mídia, carregamento individual e busca, além do MediaSession. O diagnóstico privilegiado usa o Shizuku autorizado pelo usuário para consultar Package Manager e logs locais do Android Auto. O app continua funcional mesmo sem Shizuku.",
                 14,
                 muted
         );
@@ -224,7 +224,10 @@ public class MainActivity extends Activity {
         addDiag("Fontes desconhecidas", "não verificável por API comum");
 
         addSection("AION V Hub Bridge");
-        addDiag("Estratégia", "Dual Bridge: MediaBrowserServiceCompat + CAR_LAUNCHER");
+        addDiag("Estratégia", "Dual Bridge: MediaBrowserServiceCompat v2 + CAR_LAUNCHER");
+        addDiag("Media Browser v2", "árvore + onLoadItem + onSearch + MediaSession");
+        addDiag("Pesquisa Android Auto", "SEARCH_SUPPORTED + PLAY_FROM_SEARCH");
+        addDiag("Content style hints", "browsable + playable");
         addDiag("BridgeActivity CAR_LAUNCHER", activityDeclared(BridgeActivity.class) ? "SIM" : "NÃO");
         addDiag("MediaBrowserServiceCompat", serviceDeclared(HubMediaService.class) ? "SIM" : "NÃO");
         addDiag("CarAppService legado", serviceDeclared(HubCarAppService.class) ? "SIM" : "NÃO — removido do manifest v0.4");
@@ -268,8 +271,8 @@ public class MainActivity extends Activity {
             if (selfTestBrowser != null && selfTestBrowser.isConnected()) selfTestBrowser.disconnect();
         } catch (Exception ignored) {}
 
-        HubDiagnostics.event(this, "SELFTEST iniciando MediaBrowserCompat");
-        Toast.makeText(this, "Executando autoteste…", Toast.LENGTH_SHORT).show();
+        HubDiagnostics.event(this, "SELFTEST v2 iniciando MediaBrowserCompat");
+        Toast.makeText(this, "Executando autoteste completo…", Toast.LENGTH_SHORT).show();
 
         selfTestBrowser = new MediaBrowserCompat(
                 this,
@@ -278,41 +281,104 @@ public class MainActivity extends Activity {
                     @Override public void onConnected() {
                         try {
                             String rootId = selfTestBrowser.getRoot();
-                            HubDiagnostics.event(MainActivity.this, "SELFTEST conectado root=" + rootId);
+                            HubDiagnostics.event(MainActivity.this, "SELFTEST v2 conectado root=" + rootId);
                             selfTestBrowser.subscribe(rootId, new MediaBrowserCompat.SubscriptionCallback() {
                                 @Override public void onChildrenLoaded(String parentId, List<MediaBrowserCompat.MediaItem> children) {
-                                    HubDiagnostics.event(MainActivity.this, "SELFTEST OK children=" + children.size());
-                                    Toast.makeText(MainActivity.this, "Autoteste OK: serviço de mídia respondeu.", Toast.LENGTH_LONG).show();
-                                    try { selfTestBrowser.unsubscribe(parentId); selfTestBrowser.disconnect(); } catch (Exception ignored) {}
-                                    refreshDiagnostics();
+                                    HubDiagnostics.event(MainActivity.this, "SELFTEST v2 children=" + children.size());
+                                    runMediaItemSelfTest(children.size());
                                 }
 
                                 @Override public void onError(String parentId) {
-                                    HubDiagnostics.event(MainActivity.this, "SELFTEST ERRO subscribe=" + parentId);
-                                    Toast.makeText(MainActivity.this, "Autoteste falhou ao listar mídia.", Toast.LENGTH_LONG).show();
-                                    refreshDiagnostics();
+                                    failMediaSelfTest("listar raiz " + parentId);
                                 }
                             });
                         } catch (Throwable t) {
-                            HubDiagnostics.event(MainActivity.this, "SELFTEST EXCEÇÃO " + t.getClass().getSimpleName());
-                            refreshDiagnostics();
+                            failMediaSelfTest("exceção " + t.getClass().getSimpleName());
                         }
                     }
 
                     @Override public void onConnectionSuspended() {
-                        HubDiagnostics.event(MainActivity.this, "SELFTEST conexão suspensa");
-                        refreshDiagnostics();
+                        failMediaSelfTest("conexão suspensa");
                     }
 
                     @Override public void onConnectionFailed() {
-                        HubDiagnostics.event(MainActivity.this, "SELFTEST FALHOU conexão");
-                        Toast.makeText(MainActivity.this, "Autoteste falhou: serviço não conectou.", Toast.LENGTH_LONG).show();
-                        refreshDiagnostics();
+                        failMediaSelfTest("conexão recusada");
                     }
                 },
                 null
         );
         selfTestBrowser.connect();
+    }
+
+    private void runMediaItemSelfTest(final int childrenCount) {
+        if (selfTestBrowser == null || !selfTestBrowser.isConnected()) {
+            failMediaSelfTest("browser desconectado antes de onLoadItem");
+            return;
+        }
+
+        selfTestBrowser.getItem(HubMediaCatalog.CONNECTION_ID, new MediaBrowserCompat.ItemCallback() {
+            @Override public void onItemLoaded(MediaBrowserCompat.MediaItem item) {
+                if (item == null || item.getMediaId() == null) {
+                    failMediaSelfTest("onLoadItem retornou vazio");
+                    return;
+                }
+                HubDiagnostics.event(MainActivity.this, "SELFTEST v2 item=" + item.getMediaId());
+                runMediaSearchSelfTest(childrenCount, item.getMediaId());
+            }
+
+            @Override public void onError(String itemId) {
+                failMediaSelfTest("onLoadItem " + itemId);
+            }
+        });
+    }
+
+    private void runMediaSearchSelfTest(final int childrenCount, final String itemId) {
+        if (selfTestBrowser == null || !selfTestBrowser.isConnected()) {
+            failMediaSelfTest("browser desconectado antes de onSearch");
+            return;
+        }
+
+        selfTestBrowser.search("android auto", null, new MediaBrowserCompat.SearchCallback() {
+            @Override public void onSearchResult(String query, Bundle extras, List<MediaBrowserCompat.MediaItem> items) {
+                int count = items == null ? 0 : items.size();
+                if (count <= 0) {
+                    failMediaSelfTest("onSearch sem resultados");
+                    return;
+                }
+
+                HubDiagnostics.event(
+                        MainActivity.this,
+                        "SELFTEST OK v2 children=" + childrenCount + " item=" + itemId + " search=" + count
+                );
+                Toast.makeText(
+                        MainActivity.this,
+                        "Autoteste v2 OK: catálogo, item e busca responderam.",
+                        Toast.LENGTH_LONG
+                ).show();
+                disconnectSelfTestBrowser();
+                refreshDiagnostics();
+            }
+
+            @Override public void onError(String query, Bundle extras) {
+                failMediaSelfTest("onSearch " + query);
+            }
+        });
+    }
+
+    private void failMediaSelfTest(String reason) {
+        HubDiagnostics.event(this, "SELFTEST ERRO v2 " + reason);
+        Toast.makeText(this, "Autoteste falhou: " + reason, Toast.LENGTH_LONG).show();
+        disconnectSelfTestBrowser();
+        refreshDiagnostics();
+    }
+
+    private void disconnectSelfTestBrowser() {
+        try {
+            if (selfTestBrowser != null && selfTestBrowser.isConnected()) {
+                selfTestBrowser.unsubscribe(HubMediaCatalog.ROOT_ID);
+                selfTestBrowser.disconnect();
+            }
+        } catch (Exception ignored) {}
     }
 
     private void openBridgeLocally() {
@@ -326,7 +392,7 @@ public class MainActivity extends Activity {
             return "ANDROID AUTO CHAMOU O SERVIÇO DE MÍDIA";
         }
         if (log.contains("MEDIA-COMPAT onGetRoot cliente=com.aionvhub.app") && log.contains("SELFTEST OK")) {
-            return "SERVIÇO LOCAL OK; aguardando o Android Auto chamar";
+            return "SERVIÇO LOCAL V2 OK; aguardando o Android Auto chamar";
         }
         if (log.contains("BRIDGE onCreate")) {
             return "BridgeActivity já foi iniciada; confira se o evento veio do host ou do teste local";
@@ -340,7 +406,7 @@ public class MainActivity extends Activity {
     private String shortBridgeState() {
         String full = interpretBridgeState();
         if (full.startsWith("ANDROID AUTO")) return "HOST OK";
-        if (full.startsWith("SERVIÇO LOCAL")) return "LOCAL OK / HOST PENDENTE";
+        if (full.startsWith("SERVIÇO LOCAL")) return "LOCAL V2 OK / HOST PENDENTE";
         if (full.startsWith("BridgeActivity")) return "ACTIVITY REGISTRADA";
         return "AGUARDANDO HOST";
     }
