@@ -19,6 +19,15 @@
         android:label="AION V Hub"
         android:theme="@style/AppTheme">
 
+        <!-- Canal oficial pelo qual o servidor Shizuku entrega o Binder ao app. -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
         <meta-data
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
