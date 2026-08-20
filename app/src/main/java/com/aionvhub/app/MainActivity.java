@@ -101,7 +101,7 @@ public class MainActivity extends Activity {
         scroll.addView(root); setContentView(scroll);
 
         root.addView(label("AION V HUB",28,accent));
-        root.addView(label("v0.7 • Media Browser v2 • Shizuku integrado • Android Auto",16,muted));
+        root.addView(label("v0.7 • Media Browser v2 isolado • Shizuku integrado • Android Auto",16,muted));
         status = label("Analisando conexão…",16,text); root.addView(status);
 
         root.addView(label("Diagnóstico do sistema",22,text));
@@ -148,7 +148,7 @@ public class MainActivity extends Activity {
         root.addView(button("Testar navegador", v -> openUri("https://www.google.com")));
 
         TextView info = label(
-                "Como interpretar: a v0.7 valida árvore de mídia, carregamento individual e busca, além do MediaSession. O diagnóstico privilegiado usa o Shizuku autorizado pelo usuário para consultar Package Manager e logs locais do Android Auto. O app continua funcional mesmo sem Shizuku.",
+                "Como interpretar: a v0.7 usa somente o caminho Media Browser para descoberta no Android Auto 17.3, evitando competição com uma segunda interface automotiva. O autoteste valida árvore, item e busca. O diagnóstico privilegiado usa o Shizuku para consultar Package Manager e logs locais.",
                 14,
                 muted
         );
@@ -224,11 +224,12 @@ public class MainActivity extends Activity {
         addDiag("Fontes desconhecidas", "não verificável por API comum");
 
         addSection("AION V Hub Bridge");
-        addDiag("Estratégia", "Dual Bridge: MediaBrowserServiceCompat v2 + CAR_LAUNCHER");
+        addDiag("Estratégia", "MediaBrowserServiceCompat v2 isolado • Android Auto 17.3");
         addDiag("Media Browser v2", "árvore + onLoadItem + onSearch + MediaSession");
         addDiag("Pesquisa Android Auto", "SEARCH_SUPPORTED + PLAY_FROM_SEARCH");
         addDiag("Content style hints", "browsable + playable");
-        addDiag("BridgeActivity CAR_LAUNCHER", activityDeclared(BridgeActivity.class) ? "SIM" : "NÃO");
+        addDiag("Descoberta concorrente", "DESATIVADA — somente descritor media");
+        addDiag("BridgeActivity local", activityDeclared(BridgeActivity.class) ? "SIM — sem CAR_LAUNCHER" : "NÃO");
         addDiag("MediaBrowserServiceCompat", serviceDeclared(HubMediaService.class) ? "SIM" : "NÃO");
         addDiag("CarAppService legado", serviceDeclared(HubCarAppService.class) ? "SIM" : "NÃO — removido do manifest v0.4");
         addDiag("Descritor automotivo real", automotiveDescriptor());
@@ -395,10 +396,10 @@ public class MainActivity extends Activity {
             return "SERVIÇO LOCAL V2 OK; aguardando o Android Auto chamar";
         }
         if (log.contains("BRIDGE onCreate")) {
-            return "BridgeActivity já foi iniciada; confira se o evento veio do host ou do teste local";
+            return "BridgeActivity foi iniciada apenas no teste local";
         }
         if (carConnectionType == CarConnection.CONNECTION_TYPE_PROJECTION) {
-            return "Android Auto conectado; nenhum caminho do Bridge foi chamado ainda";
+            return "Android Auto conectado; Media Browser ainda não chamado pelo host";
         }
         return "aguardando conexão / teste";
     }
@@ -407,7 +408,7 @@ public class MainActivity extends Activity {
         String full = interpretBridgeState();
         if (full.startsWith("ANDROID AUTO")) return "HOST OK";
         if (full.startsWith("SERVIÇO LOCAL")) return "LOCAL V2 OK / HOST PENDENTE";
-        if (full.startsWith("BridgeActivity")) return "ACTIVITY REGISTRADA";
+        if (full.startsWith("BridgeActivity")) return "TESTE LOCAL";
         return "AGUARDANDO HOST";
     }
 
