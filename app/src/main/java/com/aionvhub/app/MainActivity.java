@@ -20,7 +20,7 @@ import java.util.*;
 
 public class MainActivity extends Activity {
     private LinearLayout root, diagBox, logBox;
-    private TextView status;
+    private TextView status, privilegedOutput;
     private final int bg = Color.rgb(14,21,26);
     private final int panel = Color.rgb(25,35,42);
     private final int text = Color.rgb(239,245,246);
@@ -30,10 +30,24 @@ public class MainActivity extends Activity {
     private CarConnection carConnection;
     private Observer<Integer> carObserver;
     private MediaBrowserCompat selfTestBrowser;
+    private ShizukuBridge shizukuBridge;
 
     @Override public void onCreate(Bundle b) {
         super.onCreate(b);
         buildUi();
+        shizukuBridge = new ShizukuBridge(this, new ShizukuBridge.Listener() {
+            @Override public void onStateChanged() {
+                if (diagBox != null) refreshDiagnostics();
+            }
+
+            @Override public void onOutput(String title, String output) {
+                if (privilegedOutput != null) {
+                    privilegedOutput.setText(title + "\n\n" + output);
+                }
+                HubDiagnostics.event(MainActivity.this, "PRIV " + title + ": " + firstLine(output));
+                refreshDiagnostics();
+            }
+        });
         startCarConnectionObserver();
         refreshDiagnostics();
     }
@@ -50,7 +64,15 @@ public class MainActivity extends Activity {
         if (selfTestBrowser != null && selfTestBrowser.isConnected()) {
             selfTestBrowser.disconnect();
         }
+        if (shizukuBridge != null) shizukuBridge.destroy();
         super.onDestroy();
+    }
+
+    private String firstLine(String s) {
+        if (s == null || s.trim().isEmpty()) return "sem saída";
+        int i = s.indexOf('\n');
+        String x = i >= 0 ? s.substring(0, i) : s;
+        return x.length() > 100 ? x.substring(0,100) : x;
     }
 
     private void startCarConnectionObserver() {
@@ -79,14 +101,35 @@ public class MainActivity extends Activity {
         scroll.addView(root); setContentView(scroll);
 
         root.addView(label("AION V HUB",28,accent));
-        root.addView(label("v0.5.1 • Proveniência de instalação • Android Auto",16,muted));
+        root.addView(label("v0.6 • Bridge autônomo • Shizuku integrado • Android Auto",16,muted));
         status = label("Analisando conexão…",16,text); root.addView(status);
 
         root.addView(label("Diagnóstico do sistema",22,text));
         diagBox = new LinearLayout(this); diagBox.setOrientation(LinearLayout.VERTICAL); diagBox.setPadding(22,18,22,18); diagBox.setBackgroundColor(panel); root.addView(diagBox);
         root.addView(button("Atualizar diagnóstico", v -> refreshDiagnostics()));
 
-        root.addView(label("Testes do Bridge",22,text));
+        root.addView(label("Bridge privilegiado / Shizuku",22,text));
+        root.addView(button("Autorizar / conectar Shizuku", v -> {
+            if (shizukuBridge != null) shizukuBridge.requestPermission();
+        }));
+        root.addView(button("Testar Bridge privilegiado", v -> {
+            if (shizukuBridge != null) shizukuBridge.runIdentityTest();
+        }));
+        root.addView(button("Diagnóstico profundo Android Auto", v -> {
+            if (shizukuBridge != null) shizukuBridge.runDeepAndroidAutoDiagnostic();
+        }));
+        root.addView(button("Abrir Shizuku", v -> {
+            if (shizukuBridge != null) shizukuBridge.openShizuku();
+        }));
+
+        privilegedOutput = label("Nenhum diagnóstico privilegiado executado.",13,text);
+        privilegedOutput.setTypeface(android.graphics.Typeface.MONOSPACE);
+        privilegedOutput.setPadding(22,18,22,18);
+        privilegedOutput.setBackgroundColor(panel);
+        root.addView(privilegedOutput);
+        root.addView(button("Copiar saída privilegiada", v -> copyPrivilegedOutput()));
+
+        root.addView(label("Testes do Bridge Android Auto",22,text));
         root.addView(button("Autoteste do serviço de mídia", v -> runMediaSelfTest()));
         root.addView(button("Abrir Bridge diretamente no telefone", v -> openBridgeLocally()));
 
@@ -105,14 +148,23 @@ public class MainActivity extends Activity {
         root.addView(button("Testar navegador", v -> openUri("https://www.google.com")));
 
         TextView info = label(
-                "Como interpretar: o autoteste prova se o serviço do AION V Hub funciona no próprio aparelho. A seção de proveniência mostra quem realmente iniciou a instalação, quem ficou registrado como instalador e a fonte do pacote. Isso ajuda a distinguir sideload comum de uma instalação tratada como loja pelo Android.",
+                "Como interpretar: o autoteste valida o serviço do AION V Hub. O diagnóstico privilegiado usa o Shizuku autorizado pelo usuário para consultar o Package Manager e logs locais do Android Auto, procurando evidências de aceitação ou rejeição do pacote. O app continua funcional mesmo sem Shizuku.",
                 14,
                 muted
         );
         info.setPadding(0,24,0,8); root.addView(info);
 
-        TextView warning = label("Segurança: o Bridge não remove bloqueios de movimento e não força vídeo durante a condução.",14,muted);
+        TextView warning = label("Segurança: o Bridge não remove restrições de movimento nem força conteúdo durante a condução.",14,muted);
         root.addView(warning);
+    }
+
+    private void copyPrivilegedOutput() {
+        if (privilegedOutput == null) return;
+        ClipboardManager cm = (ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+        if (cm != null) {
+            cm.setPrimaryClip(ClipData.newPlainText("AION V Hub diagnóstico", privilegedOutput.getText()));
+            Toast.makeText(this,"Diagnóstico copiado.",Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void addAppButton(String name, String pkg, String web) {
@@ -147,6 +199,16 @@ public class MainActivity extends Activity {
         addDiag("Fonte do pacote", packageSource());
         addDiag("Dono das atualizações", updateOwnerPackage());
 
+        addSection("Shizuku integrado");
+        if (shizukuBridge == null) {
+            addDiag("Estado", "inicializando…");
+        } else {
+            addDiag("Shizuku instalado", shizukuBridge.installed() ? "SIM" : "NÃO");
+            addDiag("Serviço Shizuku", shizukuBridge.binderAlive() ? "EM EXECUÇÃO" : "PARADO / não detectado");
+            addDiag("Permissão AION V Hub", shizukuBridge.permissionGranted() ? "AUTORIZADA" : "NÃO AUTORIZADA");
+            addDiag("Bridge privilegiado", shizukuBridge.status());
+        }
+
         addSection("Telefone");
         addDiag("Android", Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")");
         addDiag("Dispositivo", Build.MANUFACTURER + " " + Build.MODEL);
@@ -157,9 +219,9 @@ public class MainActivity extends Activity {
         addDiag("Android Auto", packageVersion("com.google.android.projection.gearhead"));
         addDiag("Google Play Services", packageVersion("com.google.android.gms"));
         addDiag("Conexão com carro", connection);
-        addDiag("Modo desenvolvedor", "não verificável por API");
+        addDiag("Modo desenvolvedor", "não verificável por API comum");
         addDiag("Application Mode = Developer", "confirme manualmente nas opções do Android Auto");
-        addDiag("Fontes desconhecidas", "não verificável por API");
+        addDiag("Fontes desconhecidas", "não verificável por API comum");
 
         addSection("AION V Hub Bridge");
         addDiag("Estratégia", "Dual Bridge: MediaBrowserServiceCompat + CAR_LAUNCHER");
