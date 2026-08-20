@@ -13,6 +13,7 @@
 
     <application
         android:allowBackup="true"
+        android:hardwareAccelerated="true"
         android:icon="@drawable/ic_aion_hub"
         android:label="AION V Hub"
         android:theme="@style/AppTheme">
@@ -30,8 +31,24 @@
             </intent-filter>
         </activity>
 
-        <!-- v0.3.6: estratégia isolada de Media Bridge. O CarAppService POI foi
-             removido do manifest para não competir com a descoberta de mídia. -->
+        <!-- Caminho direto de Bridge para hosts automotivos que aceitam CAR_LAUNCHER.
+             distractionOptimized=false preserva os bloqueios de movimento do host. -->
+        <activity
+            android:name=".BridgeActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:resizeableActivity="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.CAR_LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="distractionOptimized"
+                android:value="false" />
+        </activity>
+
+        <!-- Caminho de compatibilidade para Android Auto projetado. -->
         <service
             android:name=".HubMediaService"
             android:exported="true"
