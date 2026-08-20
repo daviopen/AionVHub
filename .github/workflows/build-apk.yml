@@ -29,6 +29,12 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
+      - name: Run unit tests
+        run: gradle testDebugUnitTest --stacktrace
+
+      - name: Run Android lint
+        run: gradle lintDebug --stacktrace
+
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
 
@@ -53,9 +59,6 @@ jobs:
           fi
 
           KEYSTORE_PATH="$RUNNER_TEMP/aionvhub-upload.jks"
-
-          # GitHub secret editors may preserve line breaks/spaces. Strip whitespace
-          # before decoding so a wrapped Base64 value still works.
           SANITIZED_BASE64="$(printf '%s' "$AION_KEYSTORE_BASE64" | tr -d '[:space:]')"
 
           if ! printf '%s' "$SANITIZED_BASE64" | base64 --decode > "$KEYSTORE_PATH"; then
