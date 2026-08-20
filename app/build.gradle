@@ -6,14 +6,15 @@ android {
 
     buildFeatures {
         buildConfig true
+        aidl true
     }
 
     defaultConfig {
         applicationId 'com.aionvhub.app'
         minSdk 26
         targetSdk 35
-        versionCode 12
-        versionName '0.5.1'
+        versionCode 13
+        versionName '0.6.0'
     }
 
     signingConfigs {
@@ -40,4 +41,10 @@ dependencies {
     implementation 'androidx.car.app:app:1.7.0'
     implementation 'androidx.car.app:app-projected:1.7.0'
     implementation 'androidx.media:media:1.7.0'
+
+    // Integração direta com Shizuku. O app continua funcionando sem Shizuku;
+    // os recursos privilegiados ficam disponíveis apenas quando o usuário autoriza.
+    def shizuku_version = '13.1.5'
+    implementation "dev.rikka.shizuku:api:$shizuku_version"
+    implementation "dev.rikka.shizuku:provider:$shizuku_version"
 }
