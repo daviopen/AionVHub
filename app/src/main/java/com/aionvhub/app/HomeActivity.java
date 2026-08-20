@@ -4,85 +4,148 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
+import android.widget.GridLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-/** Tela principal do AION V Hub. O diagnóstico completo permanece separado. */
+import androidx.car.app.connection.CarConnection;
+import androidx.lifecycle.Observer;
+
+/** Tela inicial do Hub com identidade visual inspirada na central do AION V. */
 public class HomeActivity extends Activity {
-    private final int bg = Color.rgb(14,21,26);
-    private final int panel = Color.rgb(25,35,42);
-    private final int text = Color.rgb(239,245,246);
-    private final int muted = Color.rgb(164,180,187);
-    private final int accent = Color.rgb(100,216,203);
+    private final int bg = Color.rgb(9, 14, 18);
+    private final int surface = Color.rgb(21, 29, 34);
+    private final int surface2 = Color.rgb(27, 37, 43);
+    private final int text = Color.rgb(244, 247, 248);
+    private final int muted = Color.rgb(157, 175, 183);
+    private final int accent = Color.rgb(75, 211, 205);
+    private final int accentDeep = Color.rgb(30, 111, 113);
+
     private LinearLayout root;
+    private TextView connectionStatus;
     private TextView streamStatus;
+    private TextView appsStatus;
+    private CarConnection carConnection;
+    private Observer<Integer> carObserver;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         buildUi();
+        startCarObserver();
     }
 
     @Override protected void onResume() {
         super.onResume();
-        refreshStreamStatus();
+        refreshSummary();
+    }
+
+    @Override protected void onDestroy() {
+        if (carConnection != null && carObserver != null) {
+            carConnection.getType().removeObserver(carObserver);
+        }
+        super.onDestroy();
     }
 
     private void buildUi() {
         ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
         scroll.setBackgroundColor(bg);
+
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(32,32,32,48);
+        root.setPadding(dp(22), dp(24), dp(22), dp(40));
         scroll.addView(root);
         setContentView(scroll);
 
-        root.addView(label("AION V HUB", 30, accent));
-        root.addView(label("v" + BuildConfig.VERSION_NAME + " • Hub de mídia para Android Auto", 16, muted));
-        root.addView(label("Início", 23, text));
+        TextView brand = label("AION V HUB", 13, accent);
+        brand.setLetterSpacing(.14f);
+        root.addView(brand);
 
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(22,18,22,18);
-        card.setBackgroundColor(panel);
-        streamStatus = label("Carregando fonte de mídia…", 16, text);
-        card.addView(streamStatus);
-        root.addView(card);
+        TextView title = label("Drive & Media", 32, text);
+        title.setPadding(0, 0, 0, dp(2));
+        root.addView(title);
+        root.addView(label("Seu tablet como central complementar do AION V", 15, muted));
 
-        root.addView(button("Configurar IPTV / stream", v ->
-                startActivity(new Intent(this, StreamSettingsActivity.class))));
-        root.addView(button("Player de vídeo no tablet (somente estacionado)", v -> openVideoPlayer()));
+        LinearLayout hero = new LinearLayout(this);
+        hero.setOrientation(LinearLayout.VERTICAL);
+        hero.setPadding(dp(20), dp(18), dp(20), dp(18));
+        hero.setBackground(heroBackground());
+        LinearLayout.LayoutParams heroParams = new LinearLayout.LayoutParams(-1, -2);
+        heroParams.setMargins(0, dp(18), 0, dp(18));
+        root.addView(hero, heroParams);
 
-        root.addView(label("Acessos rápidos", 23, text));
-        root.addView(button("Abrir Waze", v -> openPackage("com.waze")));
-        root.addView(button("Abrir Spotify", v -> openPackage("com.spotify.music")));
-        root.addView(button("Abrir YouTube no tablet", v -> openPackage("com.google.android.youtube")));
+        connectionStatus = label("Verificando Android Auto…", 18, text);
+        hero.addView(connectionStatus);
+        appsStatus = label("Apps: carregando…", 14, muted);
+        hero.addView(appsStatus);
+        streamStatus = label("Mídia: carregando…", 14, muted);
+        hero.addView(streamStatus);
+        hero.addView(label("v" + BuildConfig.VERSION_NAME + " • Bridge MediaBrowser validado no AION V", 12, accent));
 
-        root.addView(label("Manutenção", 23, text));
-        root.addView(button("Diagnóstico completo", v ->
-                startActivity(new Intent(this, MainActivity.class))));
+        root.addView(section("PAINEL"));
 
-        TextView info = label(
-                "No Android Auto, o Hub usa o MediaBrowser/MediaSession já validado no Aion V. " +
-                "O Shizuku é opcional e só amplia o diagnóstico. Vídeo não é forçado na tela do carro durante a condução.",
-                14,
-                muted
-        );
-        info.setPadding(0,22,0,0);
-        root.addView(info);
+        GridLayout grid = new GridLayout(this);
+        grid.setColumnCount(2);
+        root.addView(grid, new LinearLayout.LayoutParams(-1, -2));
+
+        grid.addView(featureCard("▦", "Apps", "Detecta automaticamente os apps instalados", v ->
+                startActivity(new Intent(this, AppsActivity.class))), featureParams());
+        grid.addView(featureCard("▶", "IPTV / Streams", "Configure sua fonte de mídia", v ->
+                startActivity(new Intent(this, StreamSettingsActivity.class))), featureParams());
+        grid.addView(featureCard("▣", "Player", "Vídeo no tablet com o veículo estacionado", v -> openVideoPlayer()), featureParams());
+        grid.addView(featureCard("⌁", "Diagnóstico", "Bridge, rede, Android Auto e Shizuku", v ->
+                startActivity(new Intent(this, MainActivity.class))), featureParams());
+
+        root.addView(section("COMO FUNCIONA"));
+        LinearLayout note = new LinearLayout(this);
+        note.setOrientation(LinearLayout.VERTICAL);
+        note.setPadding(dp(18), dp(16), dp(18), dp(16));
+        note.setBackground(cardBackground(surface));
+        note.addView(label("Apps agnósticos", 17, text));
+        note.addView(label("O Hub consulta o Android e monta a lista dos apps iniciáveis. Não há uma lista fixa de UniTV, YouTube, Spotify ou outros.", 14, muted));
+        note.addView(label("No Android Auto, os apps podem aparecer como catálogo informativo. A interface de um APK comum não é projetada dentro da central.", 13, muted));
+        root.addView(note);
+
+        TextView footer = label("AION V Hub • experiência inspirada na interface do veículo", 12, muted);
+        footer.setGravity(Gravity.CENTER);
+        footer.setPadding(0, dp(24), 0, 0);
+        root.addView(footer);
     }
 
-    private void refreshStreamStatus() {
-        if (streamStatus == null) return;
-        HubStreamStore.Config c = HubStreamStore.get(this);
-        if (c.configured()) {
-            streamStatus.setText("Fonte configurada: " + c.title + "\nDisponível no catálogo do AION V Hub.");
-        } else {
-            streamStatus.setText("Nenhuma fonte IPTV/stream configurada.\nConfigure uma URL direta de mídia para começar.");
+    private void startCarObserver() {
+        carConnection = new CarConnection(this);
+        carObserver = type -> {
+            if (connectionStatus == null) return;
+            if (type != null && type == CarConnection.CONNECTION_TYPE_PROJECTION) {
+                connectionStatus.setText("● Android Auto conectado");
+                connectionStatus.setTextColor(accent);
+            } else if (type != null && type == CarConnection.CONNECTION_TYPE_NATIVE) {
+                connectionStatus.setText("● Android Automotive conectado");
+                connectionStatus.setTextColor(accent);
+            } else {
+                connectionStatus.setText("○ Aguardando Android Auto");
+                connectionStatus.setTextColor(text);
+            }
+        };
+        carConnection.getType().observeForever(carObserver);
+    }
+
+    private void refreshSummary() {
+        if (appsStatus != null) {
+            int count = HubAppCatalog.listLaunchable(this).size();
+            appsStatus.setText(count + " apps do tablet detectados automaticamente");
+        }
+        if (streamStatus != null) {
+            HubStreamStore.Config c = HubStreamStore.get(this);
+            streamStatus.setText(c.configured()
+                    ? "Fonte de mídia: " + c.title
+                    : "Nenhuma fonte IPTV/stream configurada");
         }
     }
 
@@ -95,41 +158,76 @@ public class HomeActivity extends Activity {
         }
 
         new AlertDialog.Builder(this)
-                .setTitle("Vídeo somente estacionado")
-                .setMessage("O player visual é destinado a uso com o veículo estacionado. O AION V Hub não remove nem contorna bloqueios de segurança do Android Auto.")
+                .setTitle("Player visual")
+                .setMessage("Use a reprodução de vídeo somente com o veículo estacionado.")
                 .setNegativeButton("Cancelar", null)
                 .setPositiveButton("Estou estacionado", (dialog, which) ->
                         startActivity(new Intent(this, VideoPlayerActivity.class)))
                 .show();
     }
 
-    private void openPackage(String packageName) {
-        Intent i = getPackageManager().getLaunchIntentForPackage(packageName);
-        if (i != null) {
-            startActivity(i);
-            return;
-        }
-        Toast.makeText(this, "Aplicativo não instalado.", Toast.LENGTH_SHORT).show();
+    private View featureCard(String glyph, String title, String subtitle, View.OnClickListener listener) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(17), dp(17), dp(17), dp(17));
+        card.setBackground(cardBackground(surface2));
+        card.setClickable(true);
+        card.setFocusable(true);
+        card.setOnClickListener(listener);
+
+        TextView icon = label(glyph, 26, accent);
+        card.addView(icon);
+        card.addView(label(title, 19, text));
+        TextView sub = label(subtitle, 13, muted);
+        sub.setMaxLines(3);
+        card.addView(sub);
+        return card;
     }
 
-    private TextView label(String s, int sp, int color) {
-        TextView v = new TextView(this);
-        v.setText(s);
-        v.setTextSize(sp);
-        v.setTextColor(color);
-        v.setPadding(0,8,0,8);
+    private GridLayout.LayoutParams featureParams() {
+        GridLayout.LayoutParams p = new GridLayout.LayoutParams();
+        p.width = 0;
+        p.height = -1;
+        p.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+        p.setMargins(dp(5), dp(5), dp(5), dp(5));
+        return p;
+    }
+
+    private TextView section(String value) {
+        TextView v = label(value, 12, accent);
+        v.setLetterSpacing(.12f);
+        v.setPadding(0, dp(16), 0, dp(8));
         return v;
     }
 
-    private Button button(String title, View.OnClickListener listener) {
-        Button b = new Button(this);
-        b.setText(title);
-        b.setAllCaps(false);
-        b.setTextSize(16);
-        b.setOnClickListener(listener);
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1,-2);
-        p.setMargins(0,8,0,8);
-        b.setLayoutParams(p);
-        return b;
+    private GradientDrawable heroBackground() {
+        GradientDrawable d = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                new int[]{Color.rgb(19, 38, 43), Color.rgb(18, 28, 34), Color.rgb(12, 18, 22)}
+        );
+        d.setCornerRadius(dp(24));
+        d.setStroke(dp(1), accentDeep);
+        return d;
+    }
+
+    private GradientDrawable cardBackground(int color) {
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(color);
+        d.setCornerRadius(dp(18));
+        d.setStroke(dp(1), Color.rgb(38, 52, 59));
+        return d;
+    }
+
+    private TextView label(String value, int sp, int color) {
+        TextView v = new TextView(this);
+        v.setText(value);
+        v.setTextSize(sp);
+        v.setTextColor(color);
+        v.setPadding(0, dp(4), 0, dp(4));
+        return v;
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 }
