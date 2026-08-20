@@ -32,9 +32,49 @@ jobs:
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
 
-      - name: Upload APK
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: AionVHub-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Prepare fixed signing key
+        env:
+          AION_KEYSTORE_BASE64: ${{ secrets.AION_KEYSTORE_BASE64 }}
+          AION_KEYSTORE_PASSWORD_SECRET: ${{ secrets.AION_KEYSTORE_PASSWORD }}
+          AION_KEY_ALIAS_SECRET: ${{ secrets.AION_KEY_ALIAS }}
+          AION_KEY_PASSWORD_SECRET: ${{ secrets.AION_KEY_PASSWORD }}
+        run: |
+          if [ -z "$AION_KEYSTORE_BASE64" ] || [ -z "$AION_KEYSTORE_PASSWORD_SECRET" ] || [ -z "$AION_KEY_ALIAS_SECRET" ] || [ -z "$AION_KEY_PASSWORD_SECRET" ]; then
+            echo "SIGNED_READY=false" >> "$GITHUB_ENV"
+            echo "Signing secrets not configured; skipping release artifacts."
+            exit 0
+          fi
+          KEYSTORE_PATH="$RUNNER_TEMP/aionvhub-upload.jks"
+          printf '%s' "$AION_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          chmod 600 "$KEYSTORE_PATH"
+          echo "AION_KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+          echo "AION_KEYSTORE_PASSWORD=$AION_KEYSTORE_PASSWORD_SECRET" >> "$GITHUB_ENV"
+          echo "AION_KEY_ALIAS=$AION_KEY_ALIAS_SECRET" >> "$GITHUB_ENV"
+          echo "AION_KEY_PASSWORD=$AION_KEY_PASSWORD_SECRET" >> "$GITHUB_ENV"
+          echo "SIGNED_READY=true" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK and AAB
+        if: env.SIGNED_READY == 'true'
+        run: gradle assembleRelease bundleRelease --stacktrace
+
+      - name: Verify signed APK certificate
+        if: env.SIGNED_READY == 'true'
+        run: |
+          keytool -printcert -jarfile app/build/outputs/apk/release/app-release.apk | grep -E 'Owner:|SHA256:' || true
+
+      - name: Upload signed release artifacts
+        if: env.SIGNED_READY == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: AionVHub-release
+          path: |
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
