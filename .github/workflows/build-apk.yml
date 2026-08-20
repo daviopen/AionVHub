@@ -29,6 +29,22 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
+      - name: Guard Android Auto media manifest
+        run: |
+          MANIFEST="app/src/main/AndroidManifest.xml"
+          DESCRIPTOR="app/src/main/res/xml/automotive_app_desc.xml"
+
+          grep -q 'android.media.browse.MediaBrowserService' "$MANIFEST"
+          grep -q 'android:exported="true"' "$MANIFEST"
+          grep -q '<uses name="media"' "$DESCRIPTOR"
+
+          # Regressão crítica encontrada no Aion V/Android Auto 17.3:
+          # exigir esta permissão no serviço impede o Gearhead de fazer bind.
+          if grep -q 'android.permission.BIND_MEDIA_BROWSER_SERVICE' "$MANIFEST"; then
+            echo "ERRO: HubMediaService voltou a exigir BIND_MEDIA_BROWSER_SERVICE."
+            exit 1
+          fi
+
       - name: Run unit tests
         run: gradle testDebugUnitTest --stacktrace
 
@@ -104,8 +120,6 @@ jobs:
       - name: Verify AAB archive signature
         if: env.SIGNED_READY == 'true'
         run: |
-          # Private distribution uses our self-signed certificate. jarsigner
-          # should verify archive integrity; PKIX/timestamp warnings are expected.
           jarsigner -verify app/build/outputs/bundle/release/app-release.aab
 
       - name: Upload signed release artifacts
