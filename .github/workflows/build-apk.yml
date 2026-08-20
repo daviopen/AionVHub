@@ -62,7 +62,7 @@ jobs:
           SANITIZED_BASE64="$(printf '%s' "$AION_KEYSTORE_BASE64" | tr -d '[:space:]')"
 
           if ! printf '%s' "$SANITIZED_BASE64" | base64 --decode > "$KEYSTORE_PATH"; then
-            echo "Invalid AION_KEYSTORE_BASE64 secret. Replace it with the exact contents of AION_KEYSTORE_BASE64.txt."
+            echo "Invalid AION_KEYSTORE_BASE64 secret."
             exit 1
           fi
 
@@ -103,7 +103,10 @@ jobs:
 
       - name: Verify AAB archive signature
         if: env.SIGNED_READY == 'true'
-        run: jarsigner -verify -strict app/build/outputs/bundle/release/app-release.aab
+        run: |
+          # Private distribution uses our self-signed certificate. jarsigner
+          # should verify archive integrity; PKIX/timestamp warnings are expected.
+          jarsigner -verify app/build/outputs/bundle/release/app-release.aab
 
       - name: Upload signed release artifacts
         if: env.SIGNED_READY == 'true'
