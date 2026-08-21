@@ -15,12 +15,21 @@ public class HubMediaCatalogTest {
     public void rootHasFunctionalHubSections() {
         List<HubMediaCatalog.Entry> root = HubMediaCatalog.children(HubMediaCatalog.ROOT_ID);
 
-        assertEquals(4, root.size());
-        assertEquals(HubMediaCatalog.FAVORITES_ID, root.get(0).id);
-        assertEquals(HubMediaCatalog.IPTV_ID, root.get(1).id);
-        assertEquals(HubMediaCatalog.RADIOS_ID, root.get(2).id);
-        assertEquals(HubMediaCatalog.DIAGNOSTICS_ID, root.get(3).id);
+        assertEquals(5, root.size());
+        assertEquals(HubMediaCatalog.APPS_ID, root.get(0).id);
+        assertEquals(HubMediaCatalog.FAVORITES_ID, root.get(1).id);
+        assertEquals(HubMediaCatalog.IPTV_ID, root.get(2).id);
+        assertEquals(HubMediaCatalog.RADIOS_ID, root.get(3).id);
+        assertEquals(HubMediaCatalog.DIAGNOSTICS_ID, root.get(4).id);
         for (HubMediaCatalog.Entry entry : root) assertTrue(entry.browsable);
+    }
+
+    @Test
+    public void appsSectionHasSafeFallback() {
+        List<HubMediaCatalog.Entry> apps = HubMediaCatalog.children(HubMediaCatalog.APPS_ID);
+        assertEquals(1, apps.size());
+        assertEquals(HubMediaCatalog.APPS_EMPTY_ID, apps.get(0).id);
+        assertFalse(apps.get(0).browsable);
     }
 
     @Test
@@ -68,6 +77,15 @@ public class HubMediaCatalogTest {
         assertNotNull(item);
         assertEquals(HubMediaCatalog.CUSTOM_STREAM_ID, item.id);
         assertEquals("Minha TV", item.title);
+        assertFalse(item.browsable);
+    }
+
+    @Test
+    public void externalAppUsesPackageBasedMediaId() {
+        HubMediaCatalog.Entry item = HubMediaCatalog.externalApp("com.example.player", "Meu Player");
+        assertEquals("app:com.example.player", item.id);
+        assertEquals("Meu Player", item.title);
+        assertEquals("Disponível no tablet", item.subtitle);
         assertFalse(item.browsable);
     }
 
