@@ -1,0 +1,133 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - build/aionvhub
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Guard Android Auto media manifest
+        run: |
+          MANIFEST="app/src/main/AndroidManifest.xml"
+          DESCRIPTOR="app/src/main/res/xml/automotive_app_desc.xml"
+
+          grep -q 'android.media.browse.MediaBrowserService' "$MANIFEST"
+          grep -q 'android:exported="true"' "$MANIFEST"
+          grep -q '<uses name="media"' "$DESCRIPTOR"
+
+          # Regressão crítica encontrada no Aion V/Android Auto 17.3:
+          # exigir esta permissão no serviço impede o Gearhead de fazer bind.
+          if grep -q 'android.permission.BIND_MEDIA_BROWSER_SERVICE' "$MANIFEST"; then
+            echo "ERRO: HubMediaService voltou a exigir BIND_MEDIA_BROWSER_SERVICE."
+            exit 1
+          fi
+
+      - name: Run unit tests
+        run: gradle testDebugUnitTest --stacktrace
+
+      - name: Run Android lint
+        run: gradle lintDebug --stacktrace
+
+      - name: Build debug APK
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AionVHub-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Prepare fixed signing key
+        env:
+          AION_KEYSTORE_BASE64: ${{ secrets.AION_KEYSTORE_BASE64 }}
+          AION_KEYSTORE_PASSWORD_SECRET: ${{ secrets.AION_KEYSTORE_PASSWORD }}
+          AION_KEY_ALIAS_SECRET: ${{ secrets.AION_KEY_ALIAS }}
+          AION_KEY_PASSWORD_SECRET: ${{ secrets.AION_KEY_PASSWORD }}
+        run: |
+          if [ -z "$AION_KEYSTORE_BASE64" ] || [ -z "$AION_KEYSTORE_PASSWORD_SECRET" ] || [ -z "$AION_KEY_ALIAS_SECRET" ] || [ -z "$AION_KEY_PASSWORD_SECRET" ]; then
+            echo "SIGNED_READY=false" >> "$GITHUB_ENV"
+            echo "Signing secrets not configured; skipping release artifacts."
+            exit 0
+          fi
+
+          KEYSTORE_PATH="$RUNNER_TEMP/aionvhub-upload.jks"
+          SANITIZED_BASE64="$(printf '%s' "$AION_KEYSTORE_BASE64" | tr -d '[:space:]')"
+
+          if ! printf '%s' "$SANITIZED_BASE64" | base64 --decode > "$KEYSTORE_PATH"; then
+            echo "Invalid AION_KEYSTORE_BASE64 secret."
+            exit 1
+          fi
+
+          if [ ! -s "$KEYSTORE_PATH" ]; then
+            echo "Decoded keystore is empty."
+            exit 1
+          fi
+
+          chmod 600 "$KEYSTORE_PATH"
+          echo "AION_KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+          echo "AION_KEYSTORE_PASSWORD=$AION_KEYSTORE_PASSWORD_SECRET" >> "$GITHUB_ENV"
+          echo "AION_KEY_ALIAS=$AION_KEY_ALIAS_SECRET" >> "$GITHUB_ENV"
+          echo "AION_KEY_PASSWORD=$AION_KEY_PASSWORD_SECRET" >> "$GITHUB_ENV"
+          echo "SIGNED_READY=true" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK and AAB
+        if: env.SIGNED_READY == 'true'
+        run: gradle assembleRelease bundleRelease --stacktrace
+
+      - name: Verify APK signature and fixed certificate
+        if: env.SIGNED_READY == 'true'
+        run: |
+          APK="app/build/outputs/apk/release/app-release.apk"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          if [ -z "$APKSIGNER" ] || [ ! -x "$APKSIGNER" ]; then
+            echo "apksigner not found under $ANDROID_HOME/build-tools"
+            exit 1
+          fi
+
+          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/apksigner.txt"
+
+          EXPECTED_SHA256="778390CD93963AB5C96BAAB45A679DDDC3AE1B2F9490E9603EC97178F5526AAC"
+          ACTUAL_SHA256="$(grep -Ei 'certificate SHA-256 digest:' "$RUNNER_TEMP/apksigner.txt" | head -n1 | awk -F': ' '{print $NF}' | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+          echo "Expected SHA-256: $EXPECTED_SHA256"
+          echo "Actual SHA-256:   $ACTUAL_SHA256"
+          test -n "$ACTUAL_SHA256"
+          test "$ACTUAL_SHA256" = "$EXPECTED_SHA256"
+
+      - name: Verify AAB archive signature
+        if: env.SIGNED_READY == 'true'
+        run: |
+          jarsigner -verify app/build/outputs/bundle/release/app-release.aab
+
+      - name: Upload signed release artifacts
+        if: env.SIGNED_READY == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: AionVHub-release
+          path: |
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error

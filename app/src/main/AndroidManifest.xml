@@ -1,0 +1,81 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <queries>
+        <!-- Permite descoberta agnóstica de apps iniciáveis no Android 11+ sem
+             solicitar QUERY_ALL_PACKAGES. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+
+        <package android:name="com.google.android.projection.gearhead" />
+        <package android:name="com.google.android.gms" />
+        <package android:name="com.google.android.youtube" />
+        <package android:name="com.google.android.apps.youtube.music" />
+        <package android:name="com.spotify.music" />
+        <package android:name="com.waze" />
+        <package android:name="moe.shizuku.privileged.api" />
+    </queries>
+
+    <application
+        android:allowBackup="true"
+        android:hardwareAccelerated="true"
+        android:icon="@drawable/ic_aion_hub"
+        android:label="AION V Hub"
+        android:theme="@style/AppTheme"
+        android:usesCleartextTraffic="true">
+
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+
+        <activity
+            android:name=".HomeActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".AppsActivity" android:exported="false" />
+        <activity android:name=".AndroidAutoSettingsActivity" android:exported="false" />
+        <activity android:name=".CarSimulatorActivity" android:exported="false" />
+        <activity android:name=".ValidationActivity" android:exported="false" />
+        <activity android:name=".MainActivity" android:exported="false" />
+        <activity android:name=".StreamSettingsActivity" android:exported="false" />
+
+        <activity
+            android:name=".VideoPlayerActivity"
+            android:exported="false"
+            android:resizeableActivity="true" />
+
+        <activity
+            android:name=".BridgeActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:resizeableActivity="true" />
+
+        <!-- Caminho validado no Android Auto 17.3. Não exigir BIND_MEDIA_BROWSER_SERVICE. -->
+        <service
+            android:name=".HubMediaService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

@@ -1,0 +1,52 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.aionvhub.app'
+    compileSdk 35
+
+    buildFeatures {
+        buildConfig true
+        aidl true
+    }
+
+    defaultConfig {
+        applicationId 'com.aionvhub.app'
+        minSdk 26
+        targetSdk 35
+        versionCode 22
+        versionName '0.8.2'
+    }
+
+    signingConfigs {
+        release {
+            def ksPath = System.getenv('AION_KEYSTORE_PATH')
+            if (ksPath) {
+                storeFile file(ksPath)
+                storePassword System.getenv('AION_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('AION_KEY_ALIAS')
+                keyPassword System.getenv('AION_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.car.app:app:1.7.0'
+    implementation 'androidx.car.app:app-projected:1.7.0'
+    implementation 'androidx.media:media:1.8.0'
+
+    // Shizuku é opcional: o app funciona normalmente sem ele;
+    // o recurso só amplia o diagnóstico avançado.
+    def shizuku_version = '13.1.5'
+    implementation "dev.rikka.shizuku:api:$shizuku_version"
+    implementation "dev.rikka.shizuku:provider:$shizuku_version"
+
+    testImplementation 'junit:junit:4.13.2'
+}
