@@ -103,8 +103,10 @@ public class HomeActivity extends Activity {
         grid.setColumnCount(2);
         root.addView(grid, new LinearLayout.LayoutParams(-1, -2));
 
-        grid.addView(featureCard(HubMediaCatalog.APPS_ID, "Apps", "Detecta automaticamente os apps instalados", v ->
+        grid.addView(featureCard(HubMediaCatalog.APPS_ID, "Apps", "Todos os apps instalados no tablet", v ->
                 startActivity(new Intent(this, AppsActivity.class))), featureParams());
+        grid.addView(featureCard("android_auto_config", "Android Auto", "Escolha menus e apps que aparecem no carro", v ->
+                startActivity(new Intent(this, AndroidAutoSettingsActivity.class))), featureParams());
         grid.addView(featureCard(HubMediaCatalog.IPTV_ID, "IPTV / Streams", "Configure sua fonte de mídia", v ->
                 startActivity(new Intent(this, StreamSettingsActivity.class))), featureParams());
         grid.addView(featureCard(HubMediaCatalog.CUSTOM_STREAM_ID, "Player", "Vídeo no tablet com o veículo estacionado", v -> openVideoPlayer()), featureParams());
@@ -118,9 +120,9 @@ public class HomeActivity extends Activity {
         note.setOrientation(LinearLayout.VERTICAL);
         note.setPadding(dp(18), dp(16), dp(18), dp(16));
         note.setBackground(cardBackground(surface));
-        note.addView(label("Apps agnósticos", 17, text));
-        note.addView(label("O Hub consulta o Android e monta a lista dos apps iniciáveis. Não há uma lista fixa de UniTV, YouTube, Spotify ou outros.", 14, muted));
-        note.addView(label("No Android Auto, os apps aparecem como catálogo informativo com seus próprios ícones. A interface de um APK comum não é projetada dentro da central.", 13, muted));
+        note.addView(label("Android Auto sob seu controle", 17, text));
+        note.addView(label("O tablet continua detectando os apps automaticamente, mas você escolhe quais deles e quais funcionalidades serão expostos no carro.", 14, muted));
+        note.addView(label("A central recebe somente o catálogo configurado e pode usar ícones/artwork fornecidos pelo Hub. A interface de um APK comum não é projetada dentro da central.", 13, muted));
         root.addView(note);
 
         TextView footer = label("AION V Hub • experiência inspirada na interface do veículo", 12, muted);
@@ -149,8 +151,9 @@ public class HomeActivity extends Activity {
 
     private void refreshSummary() {
         if (appsStatus != null) {
-            int count = HubAppCatalog.listLaunchable(this).size();
-            appsStatus.setText(count + " apps do tablet detectados automaticamente");
+            int total = HubAppCatalog.listLaunchable(this).size();
+            int visible = AndroidAutoConfigStore.visibleApps(this).size();
+            appsStatus.setText(total + " apps no tablet • " + visible + " configurados para o Android Auto");
         }
         if (streamStatus != null) {
             HubStreamStore.Config c = HubStreamStore.get(this);
