@@ -14,6 +14,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -128,6 +129,14 @@ public class CarSimulatorActivity extends Activity {
         root.addView(disclaimer);
     }
 
+    private List<String> enabledMenuIds() {
+        List<String> out = new ArrayList<>();
+        for (HubMediaCatalog.Entry entry : HubMediaCatalog.children(HubMediaCatalog.ROOT_ID)) {
+            if (AndroidAutoConfigStore.isFeatureEnabled(this, entry.id)) out.add(entry.id);
+        }
+        return out;
+    }
+
     private void renderRoot() {
         current = HubMediaCatalog.ROOT_ID;
         content.removeAllViews();
@@ -138,7 +147,7 @@ public class CarSimulatorActivity extends Activity {
         grid.setColumnCount(2);
         content.addView(grid, full(dp(14)));
 
-        List<String> menus = HubCarConfig.enabledMenuIds(this);
+        List<String> menus = enabledMenuIds();
         if (menus.isEmpty()) {
             content.addView(emptyState("Nenhum menu habilitado", "Abra Minha Central e escolha o que deseja exibir."));
             return;
@@ -199,7 +208,7 @@ public class CarSimulatorActivity extends Activity {
     }
 
     private void renderApps() {
-        List<HubAppCatalog.LaunchableApp> apps = HubCarConfig.selectedApps(this);
+        List<HubAppCatalog.LaunchableApp> apps = AndroidAutoConfigStore.visibleApps(this);
         if (apps.isEmpty()) {
             content.addView(emptyState("Nenhum app selecionado", "Escolha os apps em Minha Central."));
             return;
