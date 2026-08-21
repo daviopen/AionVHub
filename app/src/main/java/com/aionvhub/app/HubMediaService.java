@@ -2,6 +2,7 @@ package com.aionvhub.app;
 
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.os.Bundle;
@@ -24,7 +25,7 @@ import java.util.Locale;
  * Media Browser do AION V Hub.
  *
  * Mantém o caminho validado no Android Auto 17.3 e oferece catálogo funcional,
- * apps detectados dinamicamente, fonte configurável e reprodução via MediaSession.
+ * apps detectados dinamicamente, artwork, fonte configurável e reprodução via MediaSession.
  */
 public class HubMediaService extends MediaBrowserServiceCompat {
     private static final String EXTRA_MEDIA_SEARCH_SUPPORTED = "android.media.browse.SEARCH_SUPPORTED";
@@ -176,7 +177,7 @@ public class HubMediaService extends MediaBrowserServiceCompat {
         HubDiagnostics.event(this, "MEDIA-V2 onLoadChildren resultado=" + items.size());
     }
 
-    @Override public void onLoadItem(@NonNull String itemId, @NonNull Result<MediaBrowserCompat.MediaItem> result) {
+    @Override public void onLoadItem(@NonNull String itemId, @NonNull Result<MediaBrowserCompat.MediaItem>> result) {
         HubDiagnostics.event(this, "MEDIA-V2 onLoadItem id=" + itemId);
         HubMediaCatalog.Entry entry = findEntry(itemId);
         result.sendResult(entry == null ? null : toMediaItem(entry));
@@ -258,10 +259,12 @@ public class HubMediaService extends MediaBrowserServiceCompat {
     }
 
     private MediaBrowserCompat.MediaItem toMediaItem(HubMediaCatalog.Entry entry) {
+        Bitmap icon = HubArtwork.forEntry(this, entry.id, 56);
         MediaDescriptionCompat description = new MediaDescriptionCompat.Builder()
                 .setMediaId(entry.id)
                 .setTitle(entry.title)
                 .setSubtitle(entry.subtitle)
+                .setIconBitmap(icon)
                 .build();
         int flag = entry.browsable ? MediaBrowserCompat.MediaItem.FLAG_BROWSABLE : MediaBrowserCompat.MediaItem.FLAG_PLAYABLE;
         return new MediaBrowserCompat.MediaItem(description, flag);
@@ -319,12 +322,16 @@ public class HubMediaService extends MediaBrowserServiceCompat {
 
     private void publishMetadata(String mediaId, String title, String subtitle) {
         if (mediaSession == null) return;
+        Bitmap artwork = HubArtwork.forEntry(this, mediaId, 512);
         mediaSession.setMetadata(new MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
                 .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, subtitle)
                 .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
                 .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, subtitle)
+                .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, artwork)
+                .putBitmap(MediaMetadataCompat.METADATA_KEY_ART, artwork)
+                .putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, artwork)
                 .build());
     }
 
