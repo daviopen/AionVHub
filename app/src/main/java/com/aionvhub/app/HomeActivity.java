@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.GridLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -63,13 +64,21 @@ public class HomeActivity extends Activity {
         scroll.addView(root);
         setContentView(scroll);
 
+        LinearLayout brandRow = new LinearLayout(this);
+        brandRow.setOrientation(LinearLayout.HORIZONTAL);
+        brandRow.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView brandArt = new ImageView(this);
+        brandArt.setImageBitmap(HubArtwork.brand(dp(58)));
+        brandRow.addView(brandArt, new LinearLayout.LayoutParams(dp(58), dp(58)));
+        LinearLayout brandText = new LinearLayout(this);
+        brandText.setOrientation(LinearLayout.VERTICAL);
+        brandText.setPadding(dp(12), 0, 0, 0);
         TextView brand = label("AION V HUB", 13, accent);
         brand.setLetterSpacing(.14f);
-        root.addView(brand);
-
-        TextView title = label("Drive & Media", 32, text);
-        title.setPadding(0, 0, 0, dp(2));
-        root.addView(title);
+        brandText.addView(brand);
+        brandText.addView(label("Drive & Media", 28, text));
+        brandRow.addView(brandText, new LinearLayout.LayoutParams(0, -2, 1f));
+        root.addView(brandRow);
         root.addView(label("Seu tablet como central complementar do AION V", 15, muted));
 
         LinearLayout hero = new LinearLayout(this);
@@ -94,12 +103,12 @@ public class HomeActivity extends Activity {
         grid.setColumnCount(2);
         root.addView(grid, new LinearLayout.LayoutParams(-1, -2));
 
-        grid.addView(featureCard("▦", "Apps", "Detecta automaticamente os apps instalados", v ->
+        grid.addView(featureCard(HubMediaCatalog.APPS_ID, "Apps", "Detecta automaticamente os apps instalados", v ->
                 startActivity(new Intent(this, AppsActivity.class))), featureParams());
-        grid.addView(featureCard("▶", "IPTV / Streams", "Configure sua fonte de mídia", v ->
+        grid.addView(featureCard(HubMediaCatalog.IPTV_ID, "IPTV / Streams", "Configure sua fonte de mídia", v ->
                 startActivity(new Intent(this, StreamSettingsActivity.class))), featureParams());
-        grid.addView(featureCard("▣", "Player", "Vídeo no tablet com o veículo estacionado", v -> openVideoPlayer()), featureParams());
-        grid.addView(featureCard("⌁", "Diagnóstico", "Bridge, rede, Android Auto e Shizuku", v ->
+        grid.addView(featureCard(HubMediaCatalog.CUSTOM_STREAM_ID, "Player", "Vídeo no tablet com o veículo estacionado", v -> openVideoPlayer()), featureParams());
+        grid.addView(featureCard(HubMediaCatalog.DIAGNOSTICS_ID, "Diagnóstico", "Bridge, rede, Android Auto e Shizuku", v ->
                 startActivity(new Intent(this, MainActivity.class))), featureParams());
 
         root.addView(section("COMO FUNCIONA"));
@@ -109,7 +118,7 @@ public class HomeActivity extends Activity {
         note.setBackground(cardBackground(surface));
         note.addView(label("Apps agnósticos", 17, text));
         note.addView(label("O Hub consulta o Android e monta a lista dos apps iniciáveis. Não há uma lista fixa de UniTV, YouTube, Spotify ou outros.", 14, muted));
-        note.addView(label("No Android Auto, os apps podem aparecer como catálogo informativo. A interface de um APK comum não é projetada dentro da central.", 13, muted));
+        note.addView(label("No Android Auto, os apps aparecem como catálogo informativo com seus próprios ícones. A interface de um APK comum não é projetada dentro da central.", 13, muted));
         root.addView(note);
 
         TextView footer = label("AION V Hub • experiência inspirada na interface do veículo", 12, muted);
@@ -166,7 +175,7 @@ public class HomeActivity extends Activity {
                 .show();
     }
 
-    private View featureCard(String glyph, String title, String subtitle, View.OnClickListener listener) {
+    private View featureCard(String mediaId, String title, String subtitle, View.OnClickListener listener) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(17), dp(17), dp(17), dp(17));
@@ -175,8 +184,13 @@ public class HomeActivity extends Activity {
         card.setFocusable(true);
         card.setOnClickListener(listener);
 
-        TextView icon = label(glyph, 26, accent);
-        card.addView(icon);
+        ImageView art = new ImageView(this);
+        art.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        art.setImageBitmap(HubArtwork.forEntry(this, mediaId, dp(48)));
+        LinearLayout.LayoutParams artParams = new LinearLayout.LayoutParams(dp(48), dp(48));
+        artParams.setMargins(0, 0, 0, dp(8));
+        card.addView(art, artParams);
+
         card.addView(label(title, 19, text));
         TextView sub = label(subtitle, 13, muted);
         sub.setMaxLines(3);
