@@ -108,6 +108,8 @@ public class HomeActivity extends Activity {
         grid.addView(featureCard(HubMediaCatalog.IPTV_ID, "IPTV / Streams", "Configure sua fonte de mídia", v ->
                 startActivity(new Intent(this, StreamSettingsActivity.class))), featureParams());
         grid.addView(featureCard(HubMediaCatalog.CUSTOM_STREAM_ID, "Player", "Vídeo no tablet com o veículo estacionado", v -> openVideoPlayer()), featureParams());
+        grid.addView(featureCard("validation", "Testes", "Validação rápida de apps, artwork, rede e MediaService", v ->
+                startActivity(new Intent(this, ValidationActivity.class))), featureParams());
         grid.addView(featureCard(HubMediaCatalog.DIAGNOSTICS_ID, "Diagnóstico", "Bridge, rede, Android Auto e Shizuku", v ->
                 startActivity(new Intent(this, MainActivity.class))), featureParams());
 
