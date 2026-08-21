@@ -50,6 +50,7 @@
 
         <activity android:name=".AppsActivity" android:exported="false" />
         <activity android:name=".AndroidAutoSettingsActivity" android:exported="false" />
+        <activity android:name=".CarSimulatorActivity" android:exported="false" />
         <activity android:name=".ValidationActivity" android:exported="false" />
         <activity android:name=".MainActivity" android:exported="false" />
         <activity android:name=".StreamSettingsActivity" android:exported="false" />
