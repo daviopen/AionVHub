@@ -10,12 +10,14 @@ import java.util.Map;
 /** Catálogo-base independente de Android para navegação e testes do Hub. */
 public final class HubMediaCatalog {
     public static final String ROOT_ID = "aion_root";
+    public static final String APPS_ID = "aion_apps";
     public static final String FAVORITES_ID = "aion_favorites";
     public static final String IPTV_ID = "aion_iptv";
     public static final String RADIOS_ID = "aion_radios";
     public static final String DIAGNOSTICS_ID = "aion_diagnostics";
 
     public static final String CUSTOM_STREAM_ID = "custom_stream";
+    public static final String APPS_EMPTY_ID = "apps_empty";
     public static final String IPTV_SETUP_ID = "iptv_setup";
     public static final String FAVORITE_EMPTY_ID = "favorite_empty";
     public static final String RADIO_INFO_ID = "radio_info";
@@ -29,6 +31,8 @@ public final class HubMediaCatalog {
     private static final Map<String, Entry> ENTRIES = new LinkedHashMap<>();
 
     static {
+        register(new Entry(APPS_ID, "Apps", "Aplicativos detectados no tablet", true,
+                "apps aplicativos tablet instalados"));
         register(new Entry(FAVORITES_ID, "Favoritos", "Suas fontes preferidas", true,
                 "favoritos favoritos stream radio iptv"));
         register(new Entry(IPTV_ID, "IPTV / Streams", "Transmissões configuradas no tablet", true,
@@ -38,6 +42,9 @@ public final class HubMediaCatalog {
         register(new Entry(DIAGNOSTICS_ID, "Diagnóstico", "Estado completo do AION V Hub", true,
                 "diagnostico bridge android auto shizuku host"));
 
+        register(new Entry(APPS_EMPTY_ID, "Nenhum app detectado",
+                "Abra o Hub no tablet para atualizar a lista", false,
+                "apps tablet vazio"));
         register(new Entry(IPTV_SETUP_ID, "Configurar IPTV no tablet",
                 "Abra o AION V Hub no tablet para informar uma URL", false,
                 "configurar iptv tablet url stream"));
@@ -78,10 +85,13 @@ public final class HubMediaCatalog {
     public static List<Entry> children(String parentId) {
         List<Entry> out = new ArrayList<>();
         if (ROOT_ID.equals(parentId)) {
+            add(out, APPS_ID);
             add(out, FAVORITES_ID);
             add(out, IPTV_ID);
             add(out, RADIOS_ID);
             add(out, DIAGNOSTICS_ID);
+        } else if (APPS_ID.equals(parentId)) {
+            add(out, APPS_EMPTY_ID);
         } else if (FAVORITES_ID.equals(parentId)) {
             add(out, FAVORITE_EMPTY_ID);
         } else if (IPTV_ID.equals(parentId)) {
@@ -128,6 +138,18 @@ public final class HubMediaCatalog {
                 "Fonte configurada no AION V Hub",
                 false,
                 "stream iptv audio video favorito personalizado"
+        );
+    }
+
+    public static Entry externalApp(String packageName, String label) {
+        String safePackage = packageName == null ? "" : packageName.trim();
+        String safeLabel = label == null || label.trim().isEmpty() ? safePackage : label.trim();
+        return new Entry(
+                HubAppCatalog.mediaId(safePackage),
+                safeLabel,
+                "Disponível no tablet",
+                false,
+                "app aplicativo tablet " + safeLabel + " " + safePackage
         );
     }
 
