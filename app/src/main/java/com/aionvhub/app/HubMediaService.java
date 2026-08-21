@@ -177,7 +177,7 @@ public class HubMediaService extends MediaBrowserServiceCompat {
         HubDiagnostics.event(this, "MEDIA-V2 onLoadChildren resultado=" + items.size());
     }
 
-    @Override public void onLoadItem(@NonNull String itemId, @NonNull Result<MediaBrowserCompat.MediaItem>> result) {
+    @Override public void onLoadItem(@NonNull String itemId, @NonNull Result<MediaBrowserCompat.MediaItem> result) {
         HubDiagnostics.event(this, "MEDIA-V2 onLoadItem id=" + itemId);
         HubMediaCatalog.Entry entry = findEntry(itemId);
         result.sendResult(entry == null ? null : toMediaItem(entry));
@@ -322,7 +322,7 @@ public class HubMediaService extends MediaBrowserServiceCompat {
 
     private void publishMetadata(String mediaId, String title, String subtitle) {
         if (mediaSession == null) return;
-        Bitmap artwork = HubArtwork.forEntry(this, mediaId, 512);
+        Bitmap artwork = HubArtwork.forEntry(this, mediaId, 256);
         mediaSession.setMetadata(new MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
