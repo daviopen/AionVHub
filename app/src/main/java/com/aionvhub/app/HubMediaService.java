@@ -23,9 +23,8 @@ import java.util.Locale;
 /**
  * Media Browser do AION V Hub.
  *
- * A v0.8 mantém o caminho que foi validado no Android Auto 17.3 e adiciona
- * catálogo funcional, fonte configurável e reprodução de áudio/stream pela
- * MediaSession. O serviço não expõe uma superfície de vídeo ao Android Auto.
+ * Mantém o caminho validado no Android Auto 17.3 e oferece catálogo funcional,
+ * apps detectados dinamicamente, fonte configurável e reprodução via MediaSession.
  */
 public class HubMediaService extends MediaBrowserServiceCompat {
     private static final String EXTRA_MEDIA_SEARCH_SUPPORTED = "android.media.browse.SEARCH_SUPPORTED";
@@ -39,8 +38,7 @@ public class HubMediaService extends MediaBrowserServiceCompat {
     private boolean playerPrepared;
     private String currentMediaId;
 
-    @Override
-    public void onCreate() {
+    @Override public void onCreate() {
         super.onCreate();
         HubDiagnostics.event(this, "MEDIA-V2 onCreate");
 
@@ -81,6 +79,17 @@ public class HubMediaService extends MediaBrowserServiceCompat {
 
                 @Override public void onPlayFromMediaId(String mediaId, Bundle extras) {
                     HubDiagnostics.event(HubMediaService.this, "MEDIA-V2 onPlayFromMediaId=" + mediaId);
+
+                    if (HubAppCatalog.isMediaId(mediaId)) {
+                        String packageName = HubAppCatalog.packageFromMediaId(mediaId);
+                        HubAppCatalog.LaunchableApp app = HubAppCatalog.find(HubMediaService.this, packageName);
+                        String title = app == null ? packageName : app.label;
+                        publishMetadata(mediaId, title, "Disponível no tablet • abra pelo AION V Hub");
+                        setPlaybackState(PlaybackStateCompat.STATE_PAUSED);
+                        HubDiagnostics.event(HubMediaService.this, "APP selecionado no AA package=" + packageName);
+                        return;
+                    }
+
                     if (HubMediaCatalog.CUSTOM_STREAM_ID.equals(mediaId)) {
                         currentMediaId = mediaId;
                         playConfiguredStream();
@@ -135,11 +144,7 @@ public class HubMediaService extends MediaBrowserServiceCompat {
                 }
             });
 
-            publishMetadata(
-                    HubMediaCatalog.ROOT_ID,
-                    "AION V Hub",
-                    "Favoritos • IPTV • Rádios"
-            );
+            publishMetadata(HubMediaCatalog.ROOT_ID, "AION V Hub", "Apps • Favoritos • IPTV • Rádios");
             setPlaybackState(PlaybackStateCompat.STATE_PAUSED);
 
             setSessionToken(mediaSession.getSessionToken());
@@ -152,8 +157,7 @@ public class HubMediaService extends MediaBrowserServiceCompat {
     }
 
     @Nullable
-    @Override
-    public BrowserRoot onGetRoot(@NonNull String clientPackageName, int clientUid, @Nullable Bundle rootHints) {
+    @Override public BrowserRoot onGetRoot(@NonNull String clientPackageName, int clientUid, @Nullable Bundle rootHints) {
         HubDiagnostics.event(this, "MEDIA-COMPAT onGetRoot cliente=" + clientPackageName + " uid=" + clientUid + " v2");
         Bundle extras = new Bundle();
         extras.putBoolean(EXTRA_MEDIA_SEARCH_SUPPORTED, true);
@@ -163,8 +167,7 @@ public class HubMediaService extends MediaBrowserServiceCompat {
         return new BrowserRoot(HubMediaCatalog.ROOT_ID, extras);
     }
 
-    @Override
-    public void onLoadChildren(@NonNull String parentId, @NonNull Result<List<MediaBrowserCompat.MediaItem>> result) {
+    @Override public void onLoadChildren(@NonNull String parentId, @NonNull Result<List<MediaBrowserCompat.MediaItem>> result) {
         HubDiagnostics.event(this, "MEDIA-V2 onLoadChildren parent=" + parentId);
         List<HubMediaCatalog.Entry> entries = childrenFor(parentId);
         List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
@@ -173,21 +176,20 @@ public class HubMediaService extends MediaBrowserServiceCompat {
         HubDiagnostics.event(this, "MEDIA-V2 onLoadChildren resultado=" + items.size());
     }
 
-    @Override
-    public void onLoadItem(@NonNull String itemId, @NonNull Result<MediaBrowserCompat.MediaItem> result) {
+    @Override public void onLoadItem(@NonNull String itemId, @NonNull Result<MediaBrowserCompat.MediaItem> result) {
         HubDiagnostics.event(this, "MEDIA-V2 onLoadItem id=" + itemId);
         HubMediaCatalog.Entry entry = findEntry(itemId);
         result.sendResult(entry == null ? null : toMediaItem(entry));
     }
 
-    @Override
-    public void onSearch(@NonNull String query, Bundle extras, @NonNull Result<List<MediaBrowserCompat.MediaItem>> result) {
+    @Override public void onSearch(@NonNull String query, Bundle extras, @NonNull Result<List<MediaBrowserCompat.MediaItem>> result) {
         String safeQuery = query.trim();
         HubDiagnostics.event(this, "MEDIA-V2 onSearch query=" + safeQuery);
 
         List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
         HubStreamStore.Config config = HubStreamStore.get(this);
         String normalized = safeQuery.toLowerCase(Locale.ROOT);
+
         if (config.configured() && (
                 normalized.isEmpty() ||
                 config.title.toLowerCase(Locale.ROOT).contains(normalized) ||
@@ -195,8 +197,17 @@ public class HubMediaService extends MediaBrowserServiceCompat {
         )) {
             items.add(toMediaItem(HubMediaCatalog.customStream(config.title)));
         }
-        for (HubMediaCatalog.Entry entry : HubMediaCatalog.search(safeQuery)) items.add(toMediaItem(entry));
 
+        if (!normalized.isEmpty()) {
+            for (HubAppCatalog.LaunchableApp app : HubAppCatalog.listLaunchable(this)) {
+                String haystack = (app.label + " " + app.packageName).toLowerCase(Locale.ROOT);
+                if (haystack.contains(normalized)) {
+                    items.add(toMediaItem(HubMediaCatalog.externalApp(app.packageName, app.label)));
+                }
+            }
+        }
+
+        for (HubMediaCatalog.Entry entry : HubMediaCatalog.search(safeQuery)) items.add(toMediaItem(entry));
         result.sendResult(items);
         HubDiagnostics.event(this, "MEDIA-V2 onSearch resultado=" + items.size());
     }
@@ -204,6 +215,18 @@ public class HubMediaService extends MediaBrowserServiceCompat {
     private List<HubMediaCatalog.Entry> childrenFor(String parentId) {
         HubStreamStore.Config config = HubStreamStore.get(this);
         List<HubMediaCatalog.Entry> out = new ArrayList<>();
+
+        if (HubMediaCatalog.APPS_ID.equals(parentId)) {
+            List<HubAppCatalog.LaunchableApp> apps = HubAppCatalog.listLaunchable(this);
+            if (apps.isEmpty()) {
+                out.addAll(HubMediaCatalog.children(parentId));
+            } else {
+                for (HubAppCatalog.LaunchableApp app : apps) {
+                    out.add(HubMediaCatalog.externalApp(app.packageName, app.label));
+                }
+            }
+            return out;
+        }
 
         if (HubMediaCatalog.IPTV_ID.equals(parentId)) {
             if (config.configured()) out.add(HubMediaCatalog.customStream(config.title));
@@ -222,6 +245,11 @@ public class HubMediaService extends MediaBrowserServiceCompat {
     }
 
     private HubMediaCatalog.Entry findEntry(String id) {
+        if (HubAppCatalog.isMediaId(id)) {
+            String packageName = HubAppCatalog.packageFromMediaId(id);
+            HubAppCatalog.LaunchableApp app = HubAppCatalog.find(this, packageName);
+            return app == null ? null : HubMediaCatalog.externalApp(app.packageName, app.label);
+        }
         if (HubMediaCatalog.CUSTOM_STREAM_ID.equals(id)) {
             HubStreamStore.Config config = HubStreamStore.get(this);
             return config.configured() ? HubMediaCatalog.customStream(config.title) : null;
