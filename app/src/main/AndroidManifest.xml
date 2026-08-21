@@ -10,6 +10,11 @@
         <package android:name="com.spotify.music" />
         <package android:name="com.waze" />
         <package android:name="moe.shizuku.privileged.api" />
+        <!-- Permite descobrir apps iniciáveis sem depender de uma lista fixa de pacotes. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
     </queries>
 
     <application
@@ -41,6 +46,7 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".AppsActivity" android:exported="false" />
         <activity android:name=".MainActivity" android:exported="false" />
         <activity android:name=".StreamSettingsActivity" android:exported="false" />
 
