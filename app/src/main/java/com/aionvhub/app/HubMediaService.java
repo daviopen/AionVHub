@@ -85,9 +85,25 @@ public class HubMediaService extends MediaBrowserServiceCompat {
                         String packageName = HubAppCatalog.packageFromMediaId(mediaId);
                         HubAppCatalog.LaunchableApp app = HubAppCatalog.find(HubMediaService.this, packageName);
                         String title = app == null ? packageName : app.label;
-                        publishMetadata(mediaId, title, "Disponível no tablet • abra pelo AION V Hub");
+
+                        boolean launched = false;
+                        try {
+                            launched = app != null && HubAppCatalog.launch(HubMediaService.this, packageName);
+                        } catch (Throwable t) {
+                            HubDiagnostics.event(HubMediaService.this,
+                                    "APP handoff ERRO package=" + packageName + " " + t.getClass().getSimpleName());
+                        }
+
+                        if (launched) {
+                            publishMetadata(mediaId, title, "Aberto no tablet pelo AION V Hub");
+                            HubDiagnostics.event(HubMediaService.this,
+                                    "APP handoff OK package=" + packageName);
+                        } else {
+                            publishMetadata(mediaId, title, "Android bloqueou a abertura no tablet");
+                            HubDiagnostics.event(HubMediaService.this,
+                                    "APP handoff BLOQUEADO package=" + packageName);
+                        }
                         setPlaybackState(PlaybackStateCompat.STATE_PAUSED);
-                        HubDiagnostics.event(HubMediaService.this, "APP selecionado no AA package=" + packageName);
                         return;
                     }
 
