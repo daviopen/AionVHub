@@ -3,6 +3,13 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <queries>
+        <!-- Permite descoberta agnóstica de apps iniciáveis no Android 11+ sem
+             solicitar QUERY_ALL_PACKAGES. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+
         <package android:name="com.google.android.projection.gearhead" />
         <package android:name="com.google.android.gms" />
         <package android:name="com.google.android.youtube" />
@@ -10,11 +17,6 @@
         <package android:name="com.spotify.music" />
         <package android:name="com.waze" />
         <package android:name="moe.shizuku.privileged.api" />
-        <!-- Permite descobrir apps iniciáveis sem depender de uma lista fixa de pacotes. -->
-        <intent>
-            <action android:name="android.intent.action.MAIN" />
-            <category android:name="android.intent.category.LAUNCHER" />
-        </intent>
     </queries>
 
     <application
